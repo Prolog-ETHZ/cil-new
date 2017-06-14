@@ -19,15 +19,16 @@ import tensorflow.python.platform
 import numpy
 import tensorflow as tf
 from imgaug import augmenters as iaa
+from imblearn.over_sampling import SMOTE
 
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100 
+TRAINING_SIZE = 1 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 60
+NUM_EPOCHS = 1
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -214,6 +215,16 @@ def make_img_overlay(img, predicted_img):
     new_img = Image.blend(background, overlay, 0.2)
     return new_img
 
+def reformat(labels):
+    new_labels = []
+    for label in labels:
+        if label == 1:
+            new_labels.append([1,0])
+        else:
+            new_labels.append([0,1])
+
+    return numpy.asarray(new_labels)
+
 
 def main(argv=None):  # pylint: disable=unused-argument
 
@@ -297,10 +308,21 @@ def main(argv=None):  # pylint: disable=unused-argument
     print(train_data.shape)  #sample_size * 16 * 16 *RGB
     print(train_labels[0][1])  # probability of [0]=>Ground [1]=>Round
     '''
-    
+    # New Feature : USE SMOTE To balance the data
+    print ('Balancing training data...')
+    sm = SMOTE(kind='svm')
+    # Change the shape to fit the method call
+    train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
+    train_labels =  train_labels[:,0]
+    print(train_data.shape)
+    print(train_labels.shape)
+    train_data, train_labels = sm.fit_sample(train_data, train_labels)
+    train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
+    train_labels = reformat(train_labels)
 
+    print(train_data.shape)
+    print(train_labels.shape)
     train_size = train_labels.shape[0]
-
     c0 = 0
     c1 = 0
     for i in range(len(train_labels)):
@@ -367,20 +389,28 @@ def main(argv=None):  # pylint: disable=unused-argument
     #Pool :3*3*512
     #Maxout:3*3*256
 
-    # Fully Connection
+    # Fully Connection 1
     fc1_weights = tf.Variable(  # fully connected, depth 512.
         tf.truncated_normal([int(3*3*256), 512],
                             stddev=0.1,
                             seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
+    
+    # Fully Connection 2
+    fc2_weights = tf.Variable(  # fully connected, depth 128.
+        tf.truncated_normal([512, 128],
+                            stddev=0.1,
+                            seed=SEED))
+    fc2_biases = tf.Variable(tf.constant(0.1, shape=[128]))
+
     keep_prob = tf.placeholder(tf.float32)
 
     # Final Layer
-    fc2_weights = tf.Variable(
-        tf.truncated_normal([512, NUM_LABELS],
+    fc3_weights = tf.Variable(
+        tf.truncated_normal([128, NUM_LABELS],
                             stddev=0.1,
                             seed=SEED))
-    fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+    fc3_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
 
     # Change the Initializer
 
@@ -398,9 +428,12 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     fc1_weights = tf.get_variable('fc1_weights', 
         shape=(int(3*3*256), 512), initializer=tf.contrib.layers.xavier_initializer()) 
-    
+
     fc2_weights = tf.get_variable('fc2_weights', 
-        shape=(512, NUM_LABELS), initializer=tf.contrib.layers.xavier_initializer()) 
+        shape=(512, 128), initializer=tf.contrib.layers.xavier_initializer()) 
+    
+    fc3_weights = tf.get_variable('fc3_weights', 
+        shape=(128, NUM_LABELS), initializer=tf.contrib.layers.xavier_initializer()) 
 
     total_parameters = numpy.sum([numpy.product([xi.value for xi in x.get_shape()]) for x in tf.all_variables()])
     print("Total Number Of Parameters :" +str(total_parameters))
@@ -611,9 +644,10 @@ def main(argv=None):  # pylint: disable=unused-argument
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
-        hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
-        hidden_drop = tf.nn.dropout(hidden, keep_prob)
-        out = tf.matmul(hidden_drop, fc2_weights) + fc2_biases
+        hidden1 = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        hidden2 = tf.nn.relu(tf.matmul(hidden1, fc2_weights) + fc2_biases)
+        hidden_drop = tf.nn.dropout(hidden2, keep_prob)
+        out = tf.matmul(hidden_drop, fc3_weights) + fc3_biases
 
         if train == True:
             summary_id = '_0'
@@ -665,8 +699,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     learning_rate = tf.train.exponential_decay(
         0.015,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size*8 ,          # Decay step.
-        0.98,                # Decay rate.
+        train_size*3 ,          # Decay step.
+        0.95,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
     
