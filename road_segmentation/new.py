@@ -23,11 +23,11 @@ from imgaug import augmenters as iaa
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100
+TRAINING_SIZE = 100 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 60 
+NUM_EPOCHS = 60
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -35,15 +35,30 @@ PREDICTION_SIZE = 50
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
 IMG_PATCH_SIZE = 16
-REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 4
+REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE = 0.161416 #0.190137
 PATCH_PER_IMAGE = 625
-'''
+
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-'''
 FLAGS = tf.app.flags.FLAGS
+
+def max_out(inputs, num_units, axis=None):
+        
+        shape = inputs.get_shape().as_list()
+        if shape[0] is None:
+            shape[0] = -1
+        if axis is None:  # Assume that channel is the last dimension
+            axis = -1
+        num_channels = shape[axis]
+        if num_channels % num_units:
+            raise ValueError('number of features({}) is not '
+                         'a multiple of num_units({})'.format(num_channels, num_units))
+        shape[axis] = num_units
+        shape += [num_channels // num_units]
+        outputs = tf.reduce_max(tf.reshape(inputs, shape), -1, keep_dims=False)
+        return outputs
 
 # Extract patches from a given image
 def img_crop(im, w, h):
@@ -221,6 +236,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             c1 = c1 + 1
     print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
     
+    
+    
     print('Normalize the data .....')
     # === Feature Three : Pre-formalize the input ===
     
@@ -229,7 +246,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_data = numpy.asarray([[[[numpy.float32((val-avgs[patch[0]])/VARIANCE) for val in j] for j in i] for i in patch[1]] for patch in  enumerate(train_data)])
     print(train_data.shape)
     
-    
+    train_size = train_labels.shape[0]
     
 
     print('Refactor with neighbors ......')
@@ -237,17 +254,10 @@ def main(argv=None):  # pylint: disable=unused-argument
     print(train_labels.shape)
     refactored_train_data = list()
     for index,data in enumerate(train_data):
+
         img_idx = int(index / PATCH_PER_IMAGE)
+
         center = data
-        '''
-        angel = numpy.random.randint(360)
-        seq = iaa.Sequential([
-                iaa.Affine(
-                    rotate=(angel, angel), # rotate randomly
-                ), 
-        ])
-        rotate_data = seq.augment_images(center)
-        '''
         up = data if (int((index-25)/PATCH_PER_IMAGE) != img_idx or index-25 <0) else train_data[index-25]
         down = data if  (int((index+25)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25]
         left = data if (int((index-1)/PATCH_PER_IMAGE) != img_idx or index-1<0 ) else train_data[index-1]
@@ -256,24 +266,22 @@ def main(argv=None):  # pylint: disable=unused-argument
         up_right = data if  (int((index-25+1)/PATCH_PER_IMAGE) != img_idx or index-25+1 <0) else train_data[index-25+1]
         down_left = data if  (int((index+25-1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25-1]
         down_right = data if  (int((index+25+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25+1]
-        expand_border_1 = data if  (int((index+25*2-1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*2-1]
-        expand_border_2 = data if  (int((index+25*2)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*2]
-        expand_border_3 = data if  (int((index+25*2+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*2+1]
-        expand_border_4 = data if  (int((index+25*2+2)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*2+2]
-        expand_border_5 = data if  (int((index+25*1+2)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*1+2]
-        expand_border_6 = data if  (int((index+2)/PATCH_PER_IMAGE) != img_idx) else train_data[index+2]
-        expand_border_7 = data if (int((index-25+2)/PATCH_PER_IMAGE) != img_idx or index-25+2 <0) else train_data[index-25+2]
-
         
-        mats = numpy.vstack([   numpy.hstack([up_left, up,up_right,expand_border_7]), 
-                                numpy.hstack([left, center,right,expand_border_6]),
-                                numpy.hstack([down_left, down,down_right,expand_border_5]),
-                                numpy.hstack([expand_border_1, expand_border_2,expand_border_3,expand_border_4])]
-                            )
+        
+        mats = numpy.vstack([   numpy.hstack([up_left, up,up_right]), 
+                            numpy.hstack([left, center,right]),
+                            numpy.hstack([down_left, down,down_right])])
             
         refactored_train_data.append(mats)
 
     train_data = numpy.asarray(refactored_train_data)
+   
+    
+    
+    
+    print(train_data.shape)
+    print(train_labels.shape)
+
     '''
     print ('Balancing training data...')
     min_c = min(c0, c1)
@@ -286,14 +294,20 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels = train_labels[new_indices]
 
     print(train_data.shape)  #sample_size * 16 * 16 *RGB
-    print(train_labels.shape)  # probability of [0]=>Ground [1]=>Round
+    print(train_labels[0][1])  # probability of [0]=>Ground [1]=>Round
     '''
+    
 
     train_size = train_labels.shape[0]
-    
-    
-    
-   
+
+    c0 = 0
+    c1 = 0
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            c0 = c0 + 1
+        else:
+            c1 = c1 + 1
+    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
     
     # This is where training samples and labels are fed to the graph.
     # These placeholder nodes will be fed a batch of training data at each
@@ -304,7 +318,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
 
-    #train_all_data_node = tf.constant(train_data) # All_X
+    train_all_data_node = tf.constant(train_data) # All_X
    
 
     # The variables below hold all the trainable weights. They are passed an
@@ -312,40 +326,16 @@ def main(argv=None):  # pylint: disable=unused-argument
     # {tf.initialize_all_variables().run()}
 
     # Define the sturcture of each layer of CNN
-    '''
-    conv1_weights = tf.Variable(
-        tf.truncated_normal([5, 5, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
-                            stddev=0.1,
-                            seed=SEED))
-    conv1_biases = tf.Variable(tf.zeros([32]))
-    conv2_weights = tf.Variable(
-        tf.truncated_normal([5, 5, 32, 64],
-                            stddev=0.1,
-                            seed=SEED))
-    conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
-    
-    fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(REFACTOR_PATCH_SIZE/ 4 * REFACTOR_PATCH_SIZE / 4 * 64), 512],
-                            stddev=0.1,
-                            seed=SEED))
-    fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
-    keep_prob = tf.placeholder(tf.float32)
-    fc2_weights = tf.Variable(
-        tf.truncated_normal([512, NUM_LABELS],
-                            stddev=0.1,
-                            seed=SEED))
-    fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
-    '''
 
-    # INPUT : N*64*64*3
+    # INPUT : N*48*48*3
     conv1_weights = tf.Variable(
         tf.truncated_normal([3, 3, NUM_CHANNELS, 64],  # Conv 3*3*64.
                             stddev=0.1,
                             seed=SEED))
     conv1_biases = tf.Variable(tf.zeros([64]))
     
-    # INPUT:64*64*64
-    # Pool : 32*32*64
+    # INPUT:48*48*64
+    # Pool : 24*24*64
 
     conv2_weights = tf.Variable(
         tf.truncated_normal([3, 3, 64, 128],  # Conv 3*3*128.
@@ -353,8 +343,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                             seed=SEED))
     conv2_biases = tf.Variable(tf.zeros([128]))
 
-    # INPUT:32*32*128
-    # Pool:16*16*128
+    # INPUT:24*24*128
+    # Pool:12*12*128
 
     conv3_weights = tf.Variable(
         tf.truncated_normal([3, 3, 128, 256],  # Conv 3*3*256.
@@ -362,8 +352,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             seed=SEED))
     conv3_biases = tf.Variable(tf.zeros([256]))
 
-    #INPUT:16*16*256
-    #Pool : 8*8*256
+    #INPUT:12*12*256
+    #Pool : 6*6*256
+    #Maxout:6*6*128
 
     conv4_weights = tf.Variable(
         tf.truncated_normal([3, 3, 128, 512],  # Conv 3*3*512.
@@ -371,12 +362,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             seed=SEED))
     conv4_biases = tf.Variable(tf.zeros([512]))
 
-    #INPUT:8*8*512
-    #Pool :4*4*512
+    #INPUT:6*6*512
+    #Pool :3*3*512
+    #Maxout:3*3*256
 
     # Fully Connection
     fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(4*4*256), 512],
+        tf.truncated_normal([int(3*3*256), 512],
                             stddev=0.1,
                             seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
@@ -404,7 +396,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         shape=(3, 3, 128, 512), initializer=tf.contrib.layers.xavier_initializer()) 
 
     fc1_weights = tf.get_variable('fc1_weights', 
-        shape=(int(4*4*256), 512), initializer=tf.contrib.layers.xavier_initializer()) 
+        shape=(int(3*3*256), 512), initializer=tf.contrib.layers.xavier_initializer()) 
     
     fc2_weights = tf.get_variable('fc2_weights', 
         shape=(512, NUM_LABELS), initializer=tf.contrib.layers.xavier_initializer()) 
@@ -445,35 +437,52 @@ def main(argv=None):  # pylint: disable=unused-argument
         for index,data in enumerate(p_data):
 
             center = data
-            '''
-            angel = numpy.random.randint(360)
-            seq = iaa.Sequential([
-                iaa.Affine(
-                    rotate=(angel, angel), # rotate randomly
-                ), 
-            ])
-            '''
-            rotate_data = data
-            up = rotate_data if (index-38 <0) else p_data[index-38]
-            down = rotate_data if(index+38>len(p_data)-1) else p_data[index+38]
-            left = rotate_data if (index-1<0) else p_data[index-1]
-            right = rotate_data if(index+1>len(p_data)-1) else p_data[index+1]
-            up_left = rotate_data if  (index-38-1 <0) else p_data[index-38-1]
-            up_right = rotate_data if  (index-38+1 > len(p_data)-1 ) else p_data[index-38+1]
-            down_left = rotate_data if  (index+38-1 > len(p_data) -1) else p_data[index+38-1]
-            down_right = rotate_data if  (index+38+1 > len(p_data)-1) else p_data[index+38+1]
-            expand_border_1 = rotate_data if  (index+38*2-1 > len(p_data)-1) else p_data[index+38*2-1]
-            expand_border_2 = rotate_data if  (index+38*2 > len(p_data)-1) else p_data[index+38*2]
-            expand_border_3 = rotate_data if  (index+38*2+1 > len(p_data)-1) else p_data[index+38*2+1]
-            expand_border_4 = rotate_data if  (index+38*2+2 > len(p_data)-1) else p_data[index+38*2+2]
-            expand_border_5 = rotate_data if  (index+38+2 > len(p_data)-1) else p_data[index+38+2]
-            expand_border_6 = rotate_data if  (index+2 > len(p_data)-1) else p_data[index+2]
-            expand_border_7 = rotate_data if (index-38+2<0) else p_data[index-38+2]
+            up = data if (index-38 <0) else p_data[index-38]
+            down = data if(index+38>len(p_data)-1) else p_data[index+38]
+            left = data if (index-1<0) else p_data[index-1]
+            right = data if(index+1>len(p_data)-1) else p_data[index+1]
+            up_left = data if  (index-38-1 <0) else p_data[index-38-1]
+            up_right = data if  (index-38+1 > len(p_data)-1 ) else p_data[index-38+1]
+            down_left = data if  (index+38-1 > len(p_data) -1) else p_data[index+38-1]
+            down_right = data if  (index+38+1 > len(p_data)-1) else p_data[index+38+1]
             
-            mats = numpy.vstack([numpy.hstack([up_left, up,up_right,expand_border_7]), 
-                            numpy.hstack([left, center,right,expand_border_6]),
-                            numpy.hstack([down_left, down,down_right,expand_border_5]),
-                            numpy.hstack([expand_border_1,expand_border_2,expand_border_3,expand_border_4])])
+            
+            mats = numpy.vstack([numpy.hstack([up_left, up,up_right]), 
+                            numpy.hstack([left, center,right]),
+                            numpy.hstack([down_left, down,down_right])])
+            refactored_data.append(mats)
+
+        p_data = numpy.asarray(refactored_data)
+        data_node = tf.constant(p_data)
+
+        output = tf.nn.softmax(model(data_node))
+        output_prediction = s.run(output,feed_dict={keep_prob:1.0})
+
+        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
+
+        return img_prediction
+
+    def get_prediction_for_train(img):
+
+        p_data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
+        print(p_data.shape)
+        refactored_data = list()
+        for index,data in enumerate(p_data):
+
+            center = data
+            up = data if (index-25 <0) else p_data[index-25]
+            down = data if(index+25>len(p_data)-1) else p_data[index+25]
+            left = data if (index-1<0) else p_data[index-1]
+            right = data if(index+1>len(p_data)-1) else p_data[index+1]
+            up_left = data if  (index-25-1 <0) else p_data[index-25-1]
+            up_right = data if  (index-25+1 > len(p_data)-1 ) else p_data[index-25+1]
+            down_left = data if  (index+25-1 > len(p_data) -1) else p_data[index+25-1]
+            down_right = data if  (index+25+1 > len(p_data)-1) else p_data[index+25+1]
+            
+            
+            mats = numpy.vstack([numpy.hstack([up_left, up,up_right]), 
+                            numpy.hstack([left, center,right]),
+                            numpy.hstack([down_left, down,down_right])])
             refactored_data.append(mats)
 
         p_data = numpy.asarray(refactored_data)
@@ -535,57 +544,12 @@ def main(argv=None):  # pylint: disable=unused-argument
         # 2D convolution, with 'SAME' padding (i.e. the output feature map has
         # the same size as the input). Note that {strides} is a 4D array whose
         # shape matches the data layout: [image index, y, x, depth].
-        '''
-        conv = tf.nn.conv2d(data,
-                            conv1_weights,
-                            strides=[1, 1, 1, 1],
-                            padding='SAME')
-        # Bias and rectified linear non-linearity.
-        relu = tf.nn.relu(tf.nn.bias_add(conv, conv1_biases))
-        # Max pooling. The kernel size spec {ksize} also follows the layout of
-        # the data. Here we have a pooling window of 2, and a stride of 2.
-        pool = tf.nn.max_pool(relu,
-                              ksize=[1, 2, 2, 1],
-                              strides=[1, 2, 2, 1],
-                              padding='SAME')
-
-        conv2 = tf.nn.conv2d(pool,
-                            conv2_weights,
-                            strides=[1, 1, 1, 1],
-                            padding='SAME')
-        relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
-        pool2 = tf.nn.max_pool(relu2,
-                              ksize=[1, 2, 2, 1],
-                              strides=[1, 2, 2, 1],
-                              padding='SAME')
-
-        
-
-
-        # Reshape the feature map cuboid into a 2D matrix to feed it to the
-        # fully connected layers.
-        pool_shape = pool2.get_shape().as_list()
-        reshape = tf.reshape(
-            pool2,
-            [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
-        # Fully connected layer. Note that the '+' operation automatically
-        # broadcasts the biases.
-        hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
-        # Add a 50% dropout during training only. Dropout also scales
-        # activations such that no rescaling is needed at evaluation time.
-        #if train:
-        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
-        hidden_drop = tf.nn.dropout(hidden, keep_prob)
-
-        out = tf.matmul(hidden_drop, fc2_weights) + fc2_biases
-        '''
         # =============== First Round ==============
         # 3*3*64 Conv
         conv1 = tf.nn.conv2d(data,
                             conv1_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-
         # Relu the Conv
         relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
         # Max pooling. The kernel size spec {ksize} also follows the layout of
@@ -595,7 +559,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                               strides=[1, 2, 2, 1],
                               padding='SAME')
 
-        
+
         # =============== Second Round ==============
         # 3*3*128 Conv
         conv2 = tf.nn.conv2d(pool1,
@@ -607,7 +571,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],
                               padding='SAME')
-        
+
         # =============== Third Round ==============
         # 3*3*256 Conv
         conv3 = tf.nn.conv2d(pool2,
@@ -621,7 +585,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],
                               padding='SAME')
-        
+
         # =============== Fourth Round ==============
         # 3*3*512 Conv
         conv4 = tf.nn.conv2d(pool3,
@@ -635,7 +599,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],
                               padding='SAME')
-        
+
         # =============== Final Stage ==============
 
         # Reshape the feature map cuboid into a 2D matrix to feed it to the
@@ -700,7 +664,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     learning_rate = tf.train.exponential_decay(
         0.015,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size*10 ,          # Decay step.
+        train_size*8 ,          # Decay step.
         0.98,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
@@ -732,8 +696,9 @@ def main(argv=None):  # pylint: disable=unused-argument
             tf.initialize_all_variables().run()
 
             # Build the summary operation based on the TF collection of Summaries.
-            #summary_op = tf.summary.merge_all()
-            #summary_writer = tf.summary.FileWriter(FLAGS.train_dir,graph_def=s.graph_def)
+            summary_op = tf.summary.merge_all()
+            summary_writer = tf.summary.FileWriter(FLAGS.train_dir,
+                                                    graph_def=s.graph_def)
             print ('Initialized!')
             # Loop through training steps.
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
@@ -776,12 +741,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                         # === Feature Two : Add ===
 
                         feed_dict={train_data_node:batch_data,train_labels_node:batch_labels,keep_prob:1.0}
-                        _, l, lr, predictions = s.run(
-                            [optimizer, loss, learning_rate, train_prediction],
+                        summary_str, _, l, lr, predictions = s.run(
+                            [summary_op, optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
-                        #summary_writer.add_summary(summary_str, step)
-                        #summary_writer.flush()
+                        summary_writer.add_summary(summary_str, step)
+                        summary_writer.flush()
 
                         # print_predictions(predictions, batch_labels)
 
@@ -809,7 +774,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
         print ("Running prediction on training set")
-        # Free Memory
+        
         # Feature Four : Final Assesement on Training Data
         
         prediction_training_dir = "predictions_training/"
@@ -849,10 +814,10 @@ def main(argv=None):  # pylint: disable=unused-argument
             p_img = get_prediction(img)
             img_3c = convertToPNG(p_img)
             Image.fromarray(img_3c).save(prediction_training_dir + "prediction_" + str(idx) + ".png")
-        
+
         '''
         train_data_filename = './training/images/';
-        dir = './trainning/predictions/'
+        dir = './training/predictions/'
         if not os.path.isdir(dir):
             os.mkdir(dir)
         for idx in range(1,TRAINING_SIZE+1):
@@ -862,11 +827,10 @@ def main(argv=None):  # pylint: disable=unused-argument
             avg = numpy.average(img)
             img = numpy.asarray([[[numpy.float32((val-avg)/VARIANCE) for val in i] for i in j ] for j in img ])
             
-            p_img = get_prediction(img)
+            p_img = get_prediction_for_train(img)
             img_3c = convertToPNG(p_img)
-            Image.fromarray(img_3c).save(dir + "prediction_" + str(idx) + ".png")
+            Image.fromarray(img_3c).save(dir +'satImage_'+str(idx)+'.png')
         '''
-        
 
 if __name__ == '__main__':
     tf.app.run()
