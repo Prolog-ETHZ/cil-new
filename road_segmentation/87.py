@@ -282,7 +282,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     print(train_data.shape)
     print(train_labels.shape)
 
-    
+    '''
     print ('Balancing training data...')
     min_c = min(c0, c1)
     idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
@@ -295,7 +295,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     print(train_data.shape)  #sample_size * 16 * 16 *RGB
     print(train_labels[0][1])  # probability of [0]=>Ground [1]=>Round
-
+    '''
     
 
     train_size = train_labels.shape[0]

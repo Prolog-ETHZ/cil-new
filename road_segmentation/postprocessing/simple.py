@@ -178,7 +178,7 @@ def get_prediction(img):
     for i,col in enumerate(prediction_labels):
         for j,cell in enumerate(col):
             if cell == 0:
-                '''
+                
                 v_score = 0
                 if not (i+3 > size or i-3 < 0):
                     if prediction_labels[i+1][j] == 1:
@@ -211,7 +211,7 @@ def get_prediction(img):
                 if score > 4:
                     print('Change!')
                     prediction_labels[i][j] = 1
-            '''
+            
             else: # Road 1
                 remove = True
                 if i+1<=size and prediction_labels[i+1][j] == 1:
