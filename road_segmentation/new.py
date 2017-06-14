@@ -27,7 +27,7 @@ TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 300 
+NUM_EPOCHS = 60 
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -38,10 +38,11 @@ IMG_PATCH_SIZE = 16
 REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 4
 VARIANCE = 0.161416 #0.190137
 PATCH_PER_IMAGE = 625
-
+'''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+'''
 FLAGS = tf.app.flags.FLAGS
 
 # Extract patches from a given image
@@ -273,7 +274,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         refactored_train_data.append(mats)
 
     train_data = numpy.asarray(refactored_train_data)
-
+    '''
     print ('Balancing training data...')
     min_c = min(c0, c1)
     idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
@@ -286,6 +287,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     print(train_data.shape)  #sample_size * 16 * 16 *RGB
     print(train_labels.shape)  # probability of [0]=>Ground [1]=>Round
+    '''
+
     train_size = train_labels.shape[0]
     
     
@@ -301,7 +304,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
 
-    train_all_data_node = tf.constant(train_data) # All_X
+    #train_all_data_node = tf.constant(train_data) # All_X
    
 
     # The variables below hold all the trainable weights. They are passed an
@@ -801,8 +804,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                 # Save the variables to disk. Check if the model is better if not, don't store
                 
-                #save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                #print("Model saved in file: %s" % save_path)
+                save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
+                print("Model saved in file: %s" % save_path)
 
 
         print ("Running prediction on training set")
