@@ -27,7 +27,7 @@ TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 1
+NUM_EPOCHS = 300 
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -729,9 +729,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             tf.initialize_all_variables().run()
 
             # Build the summary operation based on the TF collection of Summaries.
-            summary_op = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter(FLAGS.train_dir,
-                                                    graph_def=s.graph_def)
+            #summary_op = tf.summary.merge_all()
+            #summary_writer = tf.summary.FileWriter(FLAGS.train_dir,graph_def=s.graph_def)
             print ('Initialized!')
             # Loop through training steps.
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
@@ -774,12 +773,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                         # === Feature Two : Add ===
 
                         feed_dict={train_data_node:batch_data,train_labels_node:batch_labels,keep_prob:1.0}
-                        summary_str, _, l, lr, predictions = s.run(
-                            [summary_op, optimizer, loss, learning_rate, train_prediction],
+                        _, l, lr, predictions = s.run(
+                            [optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, step)
-                        summary_writer.flush()
+                        #summary_writer.add_summary(summary_str, step)
+                        #summary_writer.flush()
 
                         # print_predictions(predictions, batch_labels)
 
@@ -802,8 +801,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                 # Save the variables to disk. Check if the model is better if not, don't store
                 
-                save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                print("Model saved in file: %s" % save_path)
+                #save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
+                #print("Model saved in file: %s" % save_path)
 
 
         print ("Running prediction on training set")
