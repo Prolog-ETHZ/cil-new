@@ -38,10 +38,11 @@ IMG_PATCH_SIZE = 16
 REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE = 0.161416 #0.190137
 PATCH_PER_IMAGE = 625
-
+'''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+'''
 FLAGS = tf.app.flags.FLAGS
 
 def max_out(inputs, num_units, axis=None):
@@ -688,17 +689,19 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         if RESTORE_MODEL:
             # Restore variables from disk.
-            saver.restore(s, FLAGS.train_dir + "/model.ckpt")
-            print("Model restored.")
+            #saver.restore(s, FLAGS.train_dir + "/model.ckpt")
+            print("Model restored.") 
 
         else:
             # Run all the initializers to prepare the trainable parameters.
             tf.initialize_all_variables().run()
 
             # Build the summary operation based on the TF collection of Summaries.
+            '''
             summary_op = tf.summary.merge_all()
             summary_writer = tf.summary.FileWriter(FLAGS.train_dir,
                                                     graph_def=s.graph_def)
+            '''
             print ('Initialized!')
             # Loop through training steps.
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
@@ -741,8 +744,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                         # === Feature Two : Add ===
 
                         feed_dict={train_data_node:batch_data,train_labels_node:batch_labels,keep_prob:1.0}
-                        summary_str, _, l, lr, predictions = s.run(
-                            [summary_op, optimizer, loss, learning_rate, train_prediction],
+                        _, l, lr, predictions = s.run(
+                            [optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, step)
@@ -769,8 +772,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                 # Save the variables to disk. Check if the model is better if not, don't store
                 
-                save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                print("Model saved in file: %s" % save_path)
+                #save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
+                #print("Model saved in file: %s" % save_path)
 
 
         print ("Running prediction on training set")
