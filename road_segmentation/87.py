@@ -27,7 +27,7 @@ TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 3
+NUM_EPOCHS = 60
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -769,8 +769,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                 # Save the variables to disk. Check if the model is better if not, don't store
                 
-                save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                print("Model saved in file: %s" % save_path)
+                #save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
+                #print("Model saved in file: %s" % save_path)
 
 
         print ("Running prediction on training set")
@@ -814,7 +814,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             p_img = get_prediction(img)
             img_3c = convertToPNG(p_img)
             Image.fromarray(img_3c).save(prediction_training_dir + "prediction_" + str(idx) + ".png")
-        
+
+        '''
         train_data_filename = './training/images/';
         dir = './training/predictions/'
         if not os.path.isdir(dir):
@@ -829,6 +830,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             p_img = get_prediction_for_train(img)
             img_3c = convertToPNG(p_img)
             Image.fromarray(img_3c).save(dir +'satImage_'+str(idx)+'.png')
+        '''
 
 if __name__ == '__main__':
     tf.app.run()
