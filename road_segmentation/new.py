@@ -699,8 +699,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     learning_rate = tf.train.exponential_decay(
         0.015,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size*3 ,          # Decay step.
-        0.95,                # Decay rate.
+        train_size*5 ,          # Decay step.
+        0.97,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
     
@@ -723,7 +723,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         if RESTORE_MODEL:
             # Restore variables from disk.
-            #saver.restore(s, FLAGS.train_dir + "/model.ckpt")
+            saver.restore(s, "./model/model.ckpt")
             print("Model restored.") 
 
         else:
@@ -806,10 +806,10 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                 # Save the variables to disk. Check if the model is better if not, don't store
                 
-                #save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                #print("Model saved in file: %s" % save_path)
+                
 
-
+        save_path = saver.save(s, "./model/model.ckpt")
+        print("Model saved in file: %s" % save_path)
         print ("Running prediction on training set")
         
         # Feature Four : Final Assesement on Training Data
