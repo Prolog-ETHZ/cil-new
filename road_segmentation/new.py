@@ -656,7 +656,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                     tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
     # Add the regularization term to the loss.
     # Loss = loss function + regularizer
-    loss += 5e-4 * regularizers
+    loss += 5e-4 * regularizers 
 
     # Optimizer: set up a variable that's incremented once per batch and
     # controls the learning rate decay.
@@ -748,8 +748,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                             [optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, step)
-                        summary_writer.flush()
+                        #summary_writer.add_summary(summary_str, step)
+                        #summary_writer.flush()
 
                         # print_predictions(predictions, batch_labels)
 
