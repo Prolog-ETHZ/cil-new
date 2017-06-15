@@ -21,11 +21,12 @@ import tensorflow as tf
 from imgaug import augmenters as iaa
 from imblearn.over_sampling import SMOTE
 import pickle
+from imblearn.over_sampling import RandomOverSampler 
 
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 300 
+TRAINING_SIZE = 1 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
@@ -40,7 +41,7 @@ IMG_PATCH_SIZE = 16
 REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE = 0.161416 #0.190137
 PATCH_PER_IMAGE = 625
-PRE_PROCESSED = False
+PRE_PROCESSED = True
 '''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
@@ -241,6 +242,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     train_data = None
     train_labels = None
+    num_epochs = NUM_EPOCHS
 
     if not PRE_PROCESSED:
 
@@ -253,7 +255,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         train_labels = extract_labels(train_labels_filename, TRAINING_SIZE) #Ground = 1 Road = 0
 
         
-        num_epochs = NUM_EPOCHS
+        
 
         c0 = 0
         c1 = 0
@@ -310,7 +312,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         print(train_labels.shape)
         # New Feature : USE SMOTE To balance the data
         print ('Balancing training data...')
-        sm = SMOTE(kind='svm')
+        sm = SMOTE(kind='regular')   #RandomOverSampler(random_state=42) #
         # Change the shape to fit the method call
         train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
         train_labels =  train_labels[:,0]
@@ -322,12 +324,20 @@ def main(argv=None):  # pylint: disable=unused-argument
         save_object(train_data, './data/train_data.pkl')
         save_object(train_labels,'./data/train_labels.pkl')
         print('Object Saved')
+        print('calculate new variance')
+        var = numpy.std(train_data)
+        print(var)
+        exit(0)
+
 
     else:
 
         train_data = read_object('./data/train_data.pkl')
         train_labels = read_object('./data/train_labels.pkl')
         print('Object Read')
+        print('calculate new variance')
+        var = numpy.std(train_data)
+        print(var)
 
     print(train_data.shape)
     print(train_labels.shape)
@@ -340,7 +350,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         else:
             c1 = c1 + 1
     print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
-    pickle.save()
+    
     
     # This is where training samples and labels are fed to the graph.
     # These placeholder nodes will be fed a batch of training data at each
