@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 1 
+TRAINING_SIZE = 300 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 1
+NUM_EPOCHS = 60
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -39,9 +39,9 @@ PREDICTION_SIZE = 50
 # image size should be an integer multiple of this number!
 IMG_PATCH_SIZE = 16
 REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
-VARIANCE = 0.161416 #0.190137
+VARIANCE =  0.212212 #0.190137 #0.201966
 PATCH_PER_IMAGE = 625
-PRE_PROCESSED = True
+PRE_PROCESSED = False
 '''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
@@ -266,15 +266,14 @@ def main(argv=None):  # pylint: disable=unused-argument
                 c1 = c1 + 1
         print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
         
-        
-        
         print('Normalize the data .....')
         # === Feature Three : Pre-formalize the input ===
-        
-        
         avgs = [numpy.average(patch) for patch in train_data]
         train_data = numpy.asarray([[[[numpy.float32((val-avgs[patch[0]])/VARIANCE) for val in j] for j in i] for i in patch[1]] for patch in  enumerate(train_data)])
         print(train_data.shape)
+        
+        
+        
         
         train_size = train_labels.shape[0]
         
@@ -312,22 +311,27 @@ def main(argv=None):  # pylint: disable=unused-argument
         print(train_labels.shape)
         # New Feature : USE SMOTE To balance the data
         print ('Balancing training data...')
-        sm = SMOTE(kind='regular')   #RandomOverSampler(random_state=42) #
+        sm = RandomOverSampler() #SMOTE(kind='regular')   # #
         # Change the shape to fit the method call
         train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
         train_labels =  train_labels[:,0]
         print(train_data.shape)
         print(train_labels.shape)
         train_data, train_labels = sm.fit_sample(train_data, train_labels)
+        print('reformat')
         train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
         train_labels = reformat(train_labels)
+
+        
+        
+
+        '''
+        print('1')
         save_object(train_data, './data/train_data.pkl')
+        print('2')
         save_object(train_labels,'./data/train_labels.pkl')
         print('Object Saved')
-        print('calculate new variance')
-        var = numpy.std(train_data)
-        print(var)
-        exit(0)
+        '''
 
 
     else:
@@ -361,7 +365,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
 
-    train_all_data_node = tf.constant(train_data) # All_X
+    #train_all_data_node = tf.constant(train_data) # All_X
    
 
     # The variables below hold all the trainable weights. They are passed an
