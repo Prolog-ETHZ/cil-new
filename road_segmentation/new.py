@@ -31,7 +31,7 @@ VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
 NUM_EPOCHS = 100
-RESTORE_MODEL = True # If True, restore existing model instead of training a new one
+RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
 # Set image patch size in pixels
@@ -49,21 +49,6 @@ tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
 '''
 FLAGS = tf.app.flags.FLAGS
 
-def max_out(inputs, num_units, axis=None):
-        
-        shape = inputs.get_shape().as_list()
-        if shape[0] is None:
-            shape[0] = -1
-        if axis is None:  # Assume that channel is the last dimension
-            axis = -1
-        num_channels = shape[axis]
-        if num_channels % num_units:
-            raise ValueError('number of features({}) is not '
-                         'a multiple of num_units({})'.format(num_channels, num_units))
-        shape[axis] = num_units
-        shape += [num_channels // num_units]
-        outputs = tf.reduce_max(tf.reshape(inputs, shape), -1, keep_dims=False)
-        return outputs
 
 # Extract patches from a given image
 def img_crop(im, w, h):
@@ -401,21 +386,21 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     #INPUT:12*12*256
     #Pool : 6*6*256
-    #Maxout:6*6*128
+    
 
     conv4_weights = tf.Variable(
-        tf.truncated_normal([3, 3, 128, 512],  # Conv 3*3*512.
+        tf.truncated_normal([3, 3, 256, 512],  # Conv 3*3*512.
                             stddev=0.1,
                             seed=SEED))
     conv4_biases = tf.Variable(tf.zeros([512]))
 
     #INPUT:6*6*512
     #Pool :3*3*512
-    #Maxout:3*3*256
+    
 
     # Fully Connection 1
     fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(3*3*256), 512],
+        tf.truncated_normal([int(3*3*512), 512],
                             stddev=0.1,
                             seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
@@ -448,10 +433,10 @@ def main(argv=None):  # pylint: disable=unused-argument
         shape=(3, 3, 128, 256), initializer=tf.contrib.layers.xavier_initializer()) 
 
     conv4_weights = tf.get_variable('conv4_weights', 
-        shape=(3, 3, 128, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+        shape=(3, 3, 256, 512), initializer=tf.contrib.layers.xavier_initializer()) 
 
     fc1_weights = tf.get_variable('fc1_weights', 
-        shape=(int(3*3*256), 512), initializer=tf.contrib.layers.xavier_initializer()) 
+        shape=(int(3*3*512), 512), initializer=tf.contrib.layers.xavier_initializer()) 
 
     fc2_weights = tf.get_variable('fc2_weights', 
         shape=(512, 128), initializer=tf.contrib.layers.xavier_initializer()) 
@@ -636,9 +621,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv3_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu3 = max_out(tf.nn.bias_add(conv3, conv3_biases), 
-            int(conv3.get_shape().as_list()[-1]/2), axis=None)
-        #tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
+        relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
         pool3 = tf.nn.max_pool(relu3,
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],
@@ -650,9 +633,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv4_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu4 = max_out(tf.nn.bias_add(conv4, conv4_biases), 
-            int(conv4.get_shape().as_list()[-1]/2), axis=None)
-        #tf.nn.relu(tf.nn.bias_add(conv4, conv4_biases))
+        relu4 = tf.nn.relu(tf.nn.bias_add(conv4, conv4_biases))
         pool4 = tf.nn.max_pool(relu4,
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],

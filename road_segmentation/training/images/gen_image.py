@@ -33,12 +33,13 @@ for i in range(1,101):
 	image_name = './satImage_' +str(idx)+ '.png'
 	image = Image.open(image_name)
 	# Generate Contrast
-	idx1 = "%.3d"%(i+100)
+	idx1 = "%.3d"%(i)
 	gen1 = change_contrast(image,50)
 	gen1.save('./satImage_' +str(idx1)+ '.png')
 	# Generate Noise
+	'''
 	idx2 = "%.3d"%(i+200)
 	gen2 = aug_img(image)
 	gen2.save('./satImage_' +str(idx2)+ '.png')
-
+	'''
   
