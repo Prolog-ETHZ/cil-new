@@ -26,12 +26,12 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 300 
+TRAINING_SIZE = 100 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 60
-RESTORE_MODEL = False # If True, restore existing model instead of training a new one
+NUM_EPOCHS = 100
+RESTORE_MODEL = True # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
 # Set image patch size in pixels
@@ -723,8 +723,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     learning_rate = tf.train.exponential_decay(
         0.015,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size*5 ,          # Decay step.
-        0.97,                # Decay rate.
+        train_size*2 ,          # Decay step.
+        0.95,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
     
