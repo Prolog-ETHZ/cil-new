@@ -3,6 +3,8 @@ from sklearn.datasets import make_classification
 from sklearn.decomposition import PCA
 
 from imblearn.over_sampling import SMOTE
+import numpy as np
+from imblearn.over_sampling import RandomOverSampler
 
 print(__doc__)
 
@@ -26,8 +28,8 @@ def plot_resampling(ax, X, y, title):
 # Generate the dataset
 X, y = make_classification(n_classes=2, class_sep=2, weights=[0.3, 0.7],
                            n_informative=3, n_redundant=1, flip_y=0,
-                           n_features=20, n_clusters_per_class=1,
-                           n_samples=80, random_state=10)
+                           n_features=4, n_clusters_per_class=1,
+                           n_samples=20, random_state=10)
 
 # Instanciate a PCA object for the sake of easy visualisation
 pca = PCA(n_components=2)
@@ -35,37 +37,32 @@ pca = PCA(n_components=2)
 X_vis = pca.fit_transform(X)
 
 # Apply regular SMOTE
-kind = ['regular', 'borderline1', 'borderline2', 'svm']
+kind = ['regular']
 sm = [SMOTE(kind=k) for k in kind]
 X_resampled = []
 y_resampled = []
 X_res_vis = []
+fx = []
+for i in range(20):
+	fx.append([i,i])
+fx = np.asarray(fx)
+print(X)
+print(fx)
 
-print(X.shape)
-print(y)
 
-c0 = 0
-c1 = 0
-for i in range(len(X)):
-    if y[i] == 1:
-        c0 = c0 + 1
-    else:
-        c1 = c1 + 1
-print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+
+
 
 for method in sm:
-    X_res, y_res = method.fit_sample(X, y)
-    X_resampled.append(X_res)
-    y_resampled.append(y_res)
-    X_res_vis.append(pca.transform(X_res))
-    c0 = 0
-    c1 = 0
-    for i in range(len(X_res)):
-        if y_res[i] == 1:
-            c0 = c0 + 1
-        else:
-            c1 = c1 + 1
-    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+	model = RandomOverSampler(random_state=42)
+	X_res, y_res = model.fit_sample(X, y)
+	X_resampled.append(X_res)
+	y_resampled.append(y_res)
+	X_res_vis.append(pca.transform(X_res))
+	print(X_res)
+	fx_res, y_res = model.fit_sample(fx, y)
+	print(fx_res)
+    
 
 # Two subplots, unpack the axes array immediately
 f, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2)
