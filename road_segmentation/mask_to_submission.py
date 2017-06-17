@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.image as mpimg
 import re
 
-foreground_threshold = 0.4 # percentage of pixels > 1 required to assign a foreground label to a patch
+foreground_threshold = 0.3 # percentage of pixels > 1 required to assign a foreground label to a patch
 
 # assign a label to a patch
 def patch_to_label(patch):
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     submission_filename = 'dummy_submission.csv'
     image_filenames = []
     for i in range(1, 51):
-        imageid =  "%.3d"%i
+        imageid =  i
         image_filename = './predictions_training/prediction_' +str(imageid)+ '.png'
         print (image_filename)
         image_filenames.append(image_filename)
