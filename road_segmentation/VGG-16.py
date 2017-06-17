@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 1 
+TRAINING_SIZE = 100 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 5
+NUM_EPOCHS = 50
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -41,7 +41,7 @@ IMG_PATCH_SIZE = 16
 REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE = 0.161416 #0.190137
 PATCH_PER_IMAGE = 625
-PRE_PROCESSED = True
+PRE_PROCESSED = False
 '''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
@@ -312,7 +312,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         print(train_labels.shape)
         # New Feature : USE SMOTE To balance the data
         print ('Balancing training data...')
-        sm = SMOTE(kind='regular')   #RandomOverSampler(random_state=42) #
+        sm = RandomOverSampler()   #RandomOverSampler(random_state=42) #
         # Change the shape to fit the method call
         train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
         train_labels =  train_labels[:,0]
@@ -321,13 +321,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         train_data, train_labels = sm.fit_sample(train_data, train_labels)
         train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
         train_labels = reformat(train_labels)
-        save_object(train_data, './data/train_data.pkl')
-        save_object(train_labels,'./data/train_labels.pkl')
-        print('Object Saved')
-        print('calculate new variance')
-        var = numpy.std(train_data)
-        print(var)
-        exit(0)
+         
 
 
     else:
@@ -361,7 +355,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
 
-    train_all_data_node = tf.constant(train_data) # All_X
+    #train_all_data_node = tf.constant(train_data) # All_X
    
 
     # The variables below hold all the trainable weights. They are passed an
@@ -1071,9 +1065,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     batch = tf.Variable(0)
     # Decay once per epoch, using an exponential schedule starting at 0.01.
     learning_rate = tf.train.exponential_decay(
-        0.015,                # Base learning rate.
+        0.009,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size*5 ,          # Decay step.
+        train_size*2  ,          # Decay step.
         0.97,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
@@ -1179,8 +1173,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                             feed_dict=feed_dict)
 
         # Save The Model       
-        save_path = saver.save(s, "./model/model.ckpt")
-        print("Model saved in file: %s" % save_path)
+        # save_path = saver.save(s, "./model/model.ckpt")
+        # print("Model saved in file: %s" % save_path)
         print ("Running prediction on training set")
         
         
