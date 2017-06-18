@@ -212,6 +212,7 @@ def get_prediction(img):
                     print('Change!')
                     prediction_labels[i][j] = 1
             
+                
             else: # Road 1
                 remove = True
                 if i+1<=size and prediction_labels[i+1][j] == 1:
@@ -233,7 +234,7 @@ def get_prediction(img):
                 if remove:
                     prediction_labels[i][j] = 0
                     print('Changed')
-
+            
 
     img_prediction = label_to_img(
         img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, 
