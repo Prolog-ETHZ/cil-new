@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 1 
+TRAINING_SIZE = 100 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 2
+NUM_EPOCHS = 1
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 1
@@ -307,7 +307,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             down_right = data if  (int((index+25*3+3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3+3]
             
             
-            mats = numpy.vstack([   numpy.hstack([up_left, up,up_right]), 
+            mats = numpy.vstack([  numpy.hstack([up_left, up,up_right]), 
                                 numpy.hstack([left, center,right]),
                                 numpy.hstack([down_left, down,down_right])])
                 
@@ -915,7 +915,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     batch = tf.Variable(0)
     # Decay once per epoch, using an exponential schedule starting at 0.01.
     learning_rate = tf.train.exponential_decay(
-        0.015,                # Base learning rate.
+        0.009,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
         train_size*3 ,          # Decay step.
         0.95,                # Decay rate.
@@ -1028,8 +1028,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                 
                 
 
-        save_path = saver.save(s, "./model/model.ckpt")
-        print("Model saved in file: %s" % save_path)
+        #save_path = saver.save(s, "./model/model.ckpt")
+        #print("Model saved in file: %s" % save_path)
         print ("Running prediction on training set")
         
         # Feature Four : Final Assesement on Training Data
