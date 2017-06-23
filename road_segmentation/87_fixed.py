@@ -19,6 +19,9 @@ import tensorflow.python.platform
 import numpy
 import tensorflow as tf
 from imgaug import augmenters as iaa
+from imblearn.over_sampling import SMOTE
+import pickle
+from imblearn.over_sampling import RandomOverSampler 
 
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
@@ -27,7 +30,7 @@ TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 60
+NUM_EPOCHS = 50
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -38,10 +41,12 @@ IMG_PATCH_SIZE = 16
 REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE = 0.161416 #0.190137
 PATCH_PER_IMAGE = 625
-
+PRE_PROCESSED = False
+'''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+'''
 FLAGS = tf.app.flags.FLAGS
 
 def max_out(inputs, num_units, axis=None):
@@ -213,93 +218,124 @@ def make_img_overlay(img, predicted_img):
     new_img = Image.blend(background, overlay, 0.2)
     return new_img
 
+def reformat(labels):
+    new_labels = []
+    for label in labels:
+        if label == 1:
+            new_labels.append([1,0])
+        else:
+            new_labels.append([0,1])
+
+    return numpy.asarray(new_labels)
+
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
+def read_object(filename):
+    with open(filename,'rb') as output:
+        data = pickle.load(output)
+    return data
+
 
 def main(argv=None):  # pylint: disable=unused-argument
 
-    data_dir = 'training/'
-    train_data_filename = data_dir + 'images/'
-    train_labels_filename = data_dir + 'groundtruth/' 
-    
-    # Extract it into numpy arrays.
-    train_data = extract_data(train_data_filename, TRAINING_SIZE)
-    train_labels = extract_labels(train_labels_filename, TRAINING_SIZE) #Ground = 1 Road = 0
-
-    
+    train_data = None
+    train_labels = None
     num_epochs = NUM_EPOCHS
 
-    c0 = 0
-    c1 = 0
-    for i in range(len(train_labels)):
-        if train_labels[i][0] == 1:
-            c0 = c0 + 1
-        else:
-            c1 = c1 + 1
-    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
-    
-    
-    
-    print('Normalize the data .....')
-    # === Feature Three : Pre-formalize the input ===
-    
-    
-    avgs = [numpy.average(patch) for patch in train_data]
-    train_data = numpy.asarray([[[[numpy.float32((val-avgs[patch[0]])/VARIANCE) for val in j] for j in i] for i in patch[1]] for patch in  enumerate(train_data)])
-    print(train_data.shape)
-    
-    train_size = train_labels.shape[0]
-    
+    if not PRE_PROCESSED:
 
-    print('Refactor with neighbors ......')
-    print(train_data.shape)
-    print(train_labels.shape)
-    refactored_train_data = list()
-    for index,data in enumerate(train_data):
+        data_dir = 'training/'
+        train_data_filename = data_dir + 'images/'
+        train_labels_filename = data_dir + 'groundtruth/' 
+        
+        # Extract it into numpy arrays.
+        train_data = extract_data(train_data_filename, TRAINING_SIZE)
+        train_labels = extract_labels(train_labels_filename, TRAINING_SIZE) #Ground = 1 Road = 0
 
-        img_idx = int(index / PATCH_PER_IMAGE)
-
-        center = data
-        up = data if (int((index-25)/PATCH_PER_IMAGE) != img_idx or index-25 <0) else train_data[index-25]
-        down = data if  (int((index+25)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25]
-        left = data if (int((index-1)/PATCH_PER_IMAGE) != img_idx or index-1<0 ) else train_data[index-1]
-        right = data if (int((index+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+1]
-        up_left = data if  (int((index-25-1)/PATCH_PER_IMAGE) != img_idx or index-25-1 <0) else train_data[index-25-1]
-        up_right = data if  (int((index-25+1)/PATCH_PER_IMAGE) != img_idx or index-25+1 <0) else train_data[index-25+1]
-        down_left = data if  (int((index+25-1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25-1]
-        down_right = data if  (int((index+25+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25+1]
         
         
-        mats = numpy.vstack([   numpy.hstack([up_left, up,up_right]), 
-                            numpy.hstack([left, center,right]),
-                            numpy.hstack([down_left, down,down_right])])
+
+        c0 = 0
+        c1 = 0
+        for i in range(len(train_labels)):
+            if train_labels[i][0] == 1:
+                c0 = c0 + 1
+            else:
+                c1 = c1 + 1
+        print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+        
+        
+        
+        print('Normalize the data .....')
+        # === Feature Three : Pre-formalize the input ===
+        
+        
+        avgs = [numpy.average(patch) for patch in train_data]
+        train_data = numpy.asarray([[[[numpy.float32((val-avgs[patch[0]])/VARIANCE) for val in j] for j in i] for i in patch[1]] for patch in  enumerate(train_data)])
+        print(train_data.shape)
+        
+        train_size = train_labels.shape[0]
+        
+
+        print('Refactor with neighbors ......')
+        print(train_data.shape)
+        print(train_labels.shape)
+        refactored_train_data = list()
+        for index,data in enumerate(train_data):
+
+            img_idx = int(index / PATCH_PER_IMAGE)
+
+            center = data
+            up = data if (int((index-25)/PATCH_PER_IMAGE) != img_idx or index-25 <0) else train_data[index-25]
+            down = data if  (int((index+25)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25]
+            left = data if (int((index-1)/PATCH_PER_IMAGE) != img_idx or index-1<0 ) else train_data[index-1]
+            right = data if (int((index+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+1]
+            up_left = data if  (int((index-25-1)/PATCH_PER_IMAGE) != img_idx or index-25-1 <0) else train_data[index-25-1]
+            up_right = data if  (int((index-25+1)/PATCH_PER_IMAGE) != img_idx or index-25+1 <0) else train_data[index-25+1]
+            down_left = data if  (int((index+25-1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25-1]
+            down_right = data if  (int((index+25+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25+1]
             
-        refactored_train_data.append(mats)
+            
+            mats = numpy.vstack([   numpy.hstack([up_left, up,up_right]), 
+                                numpy.hstack([left, center,right]),
+                                numpy.hstack([down_left, down,down_right])])
+                
+            refactored_train_data.append(mats)
 
-    train_data = numpy.asarray(refactored_train_data)
-   
-    
-    
-    
+        train_data = numpy.asarray(refactored_train_data)
+        
+        
+        
+        print(train_data.shape)
+        print(train_labels.shape)
+        # New Feature : USE SMOTE To balance the data
+        print ('Balancing training data...')
+        sm = RandomOverSampler()   #RandomOverSampler(random_state=42) #
+        # Change the shape to fit the method call
+        train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
+        train_labels =  train_labels[:,0]
+        print(train_data.shape)
+        print(train_labels.shape)
+        train_data, train_labels = sm.fit_sample(train_data, train_labels)
+        train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
+        train_labels = reformat(train_labels)
+         
+
+
+    else:
+
+        train_data = read_object('./data/train_data.pkl')
+        train_labels = read_object('./data/train_labels.pkl')
+        print('Object Read')
+        print('calculate new variance')
+        var = numpy.std(train_data)
+        print(var)
+
     print(train_data.shape)
     print(train_labels.shape)
-
-    '''
-    print ('Balancing training data...')
-    min_c = min(c0, c1)
-    idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
-    idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
-    new_indices = idx0[0:min_c] + idx1[0:min_c]
-    print (len(new_indices))
-    print (train_data.shape)
-    train_data = train_data[new_indices,:,:,:]
-    train_labels = train_labels[new_indices]
-
-    print(train_data.shape)  #sample_size * 16 * 16 *RGB
-    print(train_labels[0][1])  # probability of [0]=>Ground [1]=>Round
-    '''
-    
-
     train_size = train_labels.shape[0]
-
     c0 = 0
     c1 = 0
     for i in range(len(train_labels)):
@@ -308,6 +344,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         else:
             c1 = c1 + 1
     print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+    
     
     # This is where training samples and labels are fed to the graph.
     # These placeholder nodes will be fed a batch of training data at each
@@ -318,16 +355,201 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
 
-    train_all_data_node = tf.constant(train_data) # All_X
+    #train_all_data_node = tf.constant(train_data) # All_X
    
 
     # The variables below hold all the trainable weights. They are passed an
     # initial value which will be assigned when when we call:
     # {tf.initialize_all_variables().run()}
 
-    # Define the sturcture of each layer of CNN
+    # Define the sturcture of each layer of CNN of VGG-16
 
     # INPUT : N*48*48*3
+    
+    conv1_weights = tf.Variable(
+        tf.truncated_normal([3, 3, NUM_CHANNELS, 64],  # Conv 3*3*64.
+                            stddev=0.1,
+                            seed=SEED))
+    conv1_biases = tf.Variable(tf.zeros([64]))
+
+    #INPUT: 48*48*64
+    
+    conv2_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 64, 64],  # Conv 3*3*64.
+                            stddev=0.1,
+                            seed=SEED))
+    conv2_biases = tf.Variable(tf.zeros([64]))
+
+    #INPUT:48*48*64
+    #POOL:24*24*64
+
+    #INPUT: 24*24*64
+    conv3_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 64, 128],  # Conv 3*3*128.
+                            stddev=0.1,
+                            seed=SEED))
+    conv3_biases = tf.Variable(tf.zeros([128]))
+
+    #INPUT: 24*24*128
+    conv4_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 128, 128],  # Conv 3*3*128.
+                            stddev=0.1,
+                            seed=SEED))
+    conv4_biases = tf.Variable(tf.zeros([128]))
+
+    #INPUT:24*24*128
+    #POOL: 12*12*128
+
+    #INPUT:12*12*128
+    conv5_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 128, 256],  # Conv 3*3*256.
+                            stddev=0.1,
+                            seed=SEED))
+    conv5_biases = tf.Variable(tf.zeros([256]))
+
+    #INPUT:12*12*256
+    conv6_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 256, 256],  # Conv 3*3*256.
+                            stddev=0.1,
+                            seed=SEED))
+    conv6_biases = tf.Variable(tf.zeros([256]))
+
+    #INPUT:12*12*256
+    conv7_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 256, 256],  # Conv 3*3*256.
+                            stddev=0.1,
+                            seed=SEED))
+    conv7_biases = tf.Variable(tf.zeros([256]))
+
+    #INPUT:12*12*256
+    #POOL: 6*6*256
+
+    #INPUT:6*6*256
+    conv8_weights = tf.Variable(
+        tf.truncated_normal([3, 3, 256, 512],  # Conv 3*3*512.
+                            stddev=0.1,
+                            seed=SEED))
+    conv8_biases = tf.Variable(tf.zeros([512]))
+
+    #INPUT:6*6*512
+    conv9_weights = tf.Variable(
+        tf.truncated_normal([3, 3,512, 512],  # Conv 3*3*512.
+                            stddev=0.1,
+                            seed=SEED))
+    conv9_biases = tf.Variable(tf.zeros([512]))
+
+    #INPUT:6*6*512
+    conv10_weights = tf.Variable(
+        tf.truncated_normal([3, 3,512, 512],  # Conv 3*3*512.
+                            stddev=0.1,
+                            seed=SEED))
+    conv10_biases = tf.Variable(tf.zeros([512]))
+
+    #INPUT:6*6*512
+    #POOL: 3*3*512
+
+    #INPUT:3*3*512
+    conv11_weights = tf.Variable(
+        tf.truncated_normal([3, 3,512, 512],  # Conv 3*3*512.
+                            stddev=0.1,
+                            seed=SEED))
+    conv11_biases = tf.Variable(tf.zeros([512]))
+
+    #INPUT:3*3*512
+    conv12_weights = tf.Variable(
+        tf.truncated_normal([3, 3,512, 512],  # Conv 3*3*512.
+                            stddev=0.1,
+                            seed=SEED))
+    conv12_biases = tf.Variable(tf.zeros([512]))
+
+
+    #INPUT:3*3*512
+    conv13_weights = tf.Variable(
+        tf.truncated_normal([3, 3,512, 512],  # Conv 3*3*512.
+                            stddev=0.1,
+                            seed=SEED))
+    conv13_biases = tf.Variable(tf.zeros([512]))
+
+    #INPUT:3*3*512
+    #POOL:2*2*512
+    #FLATEEN: 2048
+    keep_prob = tf.placeholder(tf.float32)
+    # Fully Connection 1
+    fc1_weights = tf.Variable(  # fully connected, depth 1024.
+        tf.truncated_normal([int(2*2*512), 256],
+                            stddev=0.1,
+                            seed=SEED))
+    fc1_biases = tf.Variable(tf.constant(0.1, shape=[256]))
+
+    # Fully Connection 2
+    fc2_weights = tf.Variable(  # fully connected, depth 256.
+        tf.truncated_normal([int(256), 16],
+                            stddev=0.1,
+                            seed=SEED))
+    fc2_biases = tf.Variable(tf.constant(0.1, shape=[16]))
+
+    # Final Layer
+    fc3_weights = tf.Variable(
+        tf.truncated_normal([16, NUM_LABELS],
+                            stddev=0.1,
+                            seed=SEED))
+    fc3_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+
+
+    # Change the Initializer
+
+    conv1_weights = tf.get_variable('conv1_weights', 
+        shape=(3, 3, NUM_CHANNELS, 64), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv2_weights = tf.get_variable('conv2_weights', 
+        shape=(3, 3, 64, 64), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv3_weights = tf.get_variable('conv3_weights', 
+        shape=(3, 3, 64, 128), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv4_weights = tf.get_variable('conv4_weights', 
+        shape=(3, 3, 128, 128), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv5_weights = tf.get_variable('conv5_weights', 
+        shape=(3, 3, 128, 256), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv6_weights = tf.get_variable('conv6_weights', 
+        shape=(3, 3, 256, 256), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv7_weights = tf.get_variable('conv7_weights', 
+        shape=(3, 3, 256, 256), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv8_weights = tf.get_variable('conv8_weights', 
+        shape=(3, 3, 256, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv9_weights = tf.get_variable('conv9_weights', 
+        shape=(3, 3, 512, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv10_weights = tf.get_variable('conv10_weights', 
+        shape=(3, 3, 512, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv11_weights = tf.get_variable('conv11_weights', 
+        shape=(3, 3, 512, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv12_weights = tf.get_variable('conv12_weights', 
+        shape=(3, 3, 512, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    conv13_weights = tf.get_variable('conv13_weights', 
+        shape=(3, 3, 512, 512), initializer=tf.contrib.layers.xavier_initializer()) 
+
+
+    
+    fc1_weights = tf.get_variable('fc1_weights', 
+        shape=(int(2*2*512), 256), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    fc2_weights = tf.get_variable('fc2_weights', 
+        shape=(256, 16), initializer=tf.contrib.layers.xavier_initializer()) 
+    
+    fc3_weights = tf.get_variable('fc3_weights', 
+        shape=(16, NUM_LABELS), initializer=tf.contrib.layers.xavier_initializer()) 
+
+
+    '''
     conv1_weights = tf.Variable(
         tf.truncated_normal([3, 3, NUM_CHANNELS, 64],  # Conv 3*3*64.
                             stddev=0.1,
@@ -366,20 +588,28 @@ def main(argv=None):  # pylint: disable=unused-argument
     #Pool :3*3*512
     #Maxout:3*3*256
 
-    # Fully Connection
+    # Fully Connection 1
     fc1_weights = tf.Variable(  # fully connected, depth 512.
         tf.truncated_normal([int(3*3*256), 512],
                             stddev=0.1,
                             seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
+    
+    # Fully Connection 2
+    fc2_weights = tf.Variable(  # fully connected, depth 128.
+        tf.truncated_normal([512, 128],
+                            stddev=0.1,
+                            seed=SEED))
+    fc2_biases = tf.Variable(tf.constant(0.1, shape=[128]))
+
     keep_prob = tf.placeholder(tf.float32)
 
     # Final Layer
-    fc2_weights = tf.Variable(
-        tf.truncated_normal([512, NUM_LABELS],
+    fc3_weights = tf.Variable(
+        tf.truncated_normal([128, NUM_LABELS],
                             stddev=0.1,
                             seed=SEED))
-    fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+    fc3_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
 
     # Change the Initializer
 
@@ -397,10 +627,14 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     fc1_weights = tf.get_variable('fc1_weights', 
         shape=(int(3*3*256), 512), initializer=tf.contrib.layers.xavier_initializer()) 
-    
-    fc2_weights = tf.get_variable('fc2_weights', 
-        shape=(512, NUM_LABELS), initializer=tf.contrib.layers.xavier_initializer()) 
 
+    fc2_weights = tf.get_variable('fc2_weights', 
+        shape=(512, 128), initializer=tf.contrib.layers.xavier_initializer()) 
+    
+    fc3_weights = tf.get_variable('fc3_weights', 
+        shape=(128, NUM_LABELS), initializer=tf.contrib.layers.xavier_initializer()) 
+
+    '''
     total_parameters = numpy.sum([numpy.product([xi.value for xi in x.get_shape()]) for x in tf.all_variables()])
     print("Total Number Of Parameters :" +str(total_parameters))
     
@@ -544,6 +778,174 @@ def main(argv=None):  # pylint: disable=unused-argument
         # 2D convolution, with 'SAME' padding (i.e. the output feature map has
         # the same size as the input). Note that {strides} is a 4D array whose
         # shape matches the data layout: [image index, y, x, depth].
+
+        # =============== 1st Layer ==============
+        # 3*3*64 Conv
+        conv1 = tf.nn.conv2d(data,
+                            conv1_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        # Relu the Conv
+        relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
+
+        # =============== 2nd Layer ==============
+        # 3*3*64 Conv
+        conv2 = tf.nn.conv2d(relu1,
+                            conv2_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        # Relu the Conv
+        relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+
+        # Max pooling. The kernel size spec {ksize} also follows the layout of
+        # the data. Here we have a pooling window of 2, and a stride of 2.
+        pool1 = tf.nn.max_pool(relu2,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+
+        # =============== 3rd Layer ==============
+        # 3*3*128 Conv
+        conv3 = tf.nn.conv2d(pool1,
+                            conv3_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
+
+        # =============== 4th Layer ==============
+        # 3*3*128 Conv
+        conv4 = tf.nn.conv2d(relu3,
+                            conv4_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        # Relu the Conv
+        relu4 = tf.nn.relu(tf.nn.bias_add(conv4, conv4_biases))
+
+        # Max pooling. The kernel size spec {ksize} also follows the layout of
+        # the data. Here we have a pooling window of 2, and a stride of 2.
+        pool2 = tf.nn.max_pool(relu4,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+
+        # =============== 5th Layer ==============
+        # 3*3*256 Conv
+        conv5 = tf.nn.conv2d(pool2,
+                            conv5_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu5 = tf.nn.relu(tf.nn.bias_add(conv5, conv5_biases))
+
+        # =============== 6th Layer ==============
+        # 3*3*256 Conv
+        conv6 = tf.nn.conv2d(relu5,
+                            conv6_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu6 = tf.nn.relu(tf.nn.bias_add(conv6, conv6_biases))
+
+        # =============== 7th Layer ==============
+        # 3*3*256 Conv
+        conv7 = tf.nn.conv2d(relu6,
+                            conv7_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu7 = tf.nn.relu(tf.nn.bias_add(conv7, conv7_biases))
+
+        # Max pooling. The kernel size spec {ksize} also follows the layout of
+        # the data. Here we have a pooling window of 2, and a stride of 2.
+        pool3 = tf.nn.max_pool(relu7,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+
+        # =============== 8th Layer ==============
+        # 3*3*512 Conv
+        conv8 = tf.nn.conv2d(pool3,
+                            conv8_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu8 = tf.nn.relu(tf.nn.bias_add(conv8, conv8_biases))
+
+        # =============== 9th Layer ==============
+        # 3*3*512 Conv
+        conv9 = tf.nn.conv2d(relu8,
+                            conv9_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu9 = tf.nn.relu(tf.nn.bias_add(conv9, conv9_biases))
+
+        # =============== 10th Layer ==============
+        # 3*3*512 Conv
+        conv10 = tf.nn.conv2d(relu9,
+                            conv10_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu10 = tf.nn.relu(tf.nn.bias_add(conv10, conv10_biases))
+
+        # Max pooling. The kernel size spec {ksize} also follows the layout of
+        # the data. Here we have a pooling window of 2, and a stride of 2.
+        pool4 = tf.nn.max_pool(relu10,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+
+        # =============== 11th Layer ==============
+        # 3*3*512 Conv
+        conv11 = tf.nn.conv2d(pool4,
+                            conv11_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu11 = tf.nn.relu(tf.nn.bias_add(conv11, conv11_biases))
+
+        # =============== 12th Layer ==============
+        # 3*3*512 Conv
+        conv12 = tf.nn.conv2d(relu11,
+                            conv12_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu12 = tf.nn.relu(tf.nn.bias_add(conv12, conv12_biases))
+
+        # =============== 13th Layer ==============
+        # 3*3*512 Conv
+        conv13 = tf.nn.conv2d(relu12,
+                            conv13_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu13 = tf.nn.relu(tf.nn.bias_add(conv13, conv13_biases))
+
+        # Max pooling. The kernel size spec {ksize} also follows the layout of
+        # the data. Here we have a pooling window of 2, and a stride of 2.
+        pool5 = tf.nn.max_pool(relu13,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+
+        
+        # Flatten The layers
+        pool_shape = pool5.get_shape().as_list()
+        reshape = tf.reshape(
+            pool5,
+            [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]]) # 2048
+
+        # =============== 14th Layer ==============
+        hidden1 = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        hidden1_drop = tf.nn.dropout(hidden1, keep_prob)
+
+        # =============== 15th Layer ==============
+        hidden2 = tf.nn.relu(tf.matmul(hidden1_drop, fc2_weights) + fc2_biases)
+        hidden2_drop = tf.nn.dropout(hidden2, keep_prob)
+
+        # =============== 16th Layer ==============
+        out = tf.matmul(hidden2_drop, fc3_weights) + fc3_biases
+
+
+        
+
+
+
+
+        '''
         # =============== First Round ==============
         # 3*3*64 Conv
         conv1 = tf.nn.conv2d(data,
@@ -610,10 +1012,11 @@ def main(argv=None):  # pylint: disable=unused-argument
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
-        hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
-        hidden_drop = tf.nn.dropout(hidden, keep_prob)
-        out = tf.matmul(hidden_drop, fc2_weights) + fc2_biases
-
+        hidden1 = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        hidden2 = tf.nn.relu(tf.matmul(hidden1, fc2_weights) + fc2_biases)
+        hidden_drop = tf.nn.dropout(hidden2, keep_prob)
+        out = tf.matmul(hidden_drop, fc3_weights) + fc3_biases
+        '''
         if train == True:
             summary_id = '_0'
             '''
@@ -655,17 +1058,17 @@ def main(argv=None):  # pylint: disable=unused-argument
                     tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
     # Add the regularization term to the loss.
     # Loss = loss function + regularizer
-    loss += 5e-4 * regularizers
+    loss += 5e-4 * regularizers 
 
     # Optimizer: set up a variable that's incremented once per batch and
     # controls the learning rate decay.
     batch = tf.Variable(0)
     # Decay once per epoch, using an exponential schedule starting at 0.01.
     learning_rate = tf.train.exponential_decay(
-        0.015,                # Base learning rate.
+        0.009,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size*8 ,          # Decay step.
-        0.98,                # Decay rate.
+        train_size*2  ,          # Decay step.
+        0.97,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
     
@@ -688,17 +1091,19 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         if RESTORE_MODEL:
             # Restore variables from disk.
-            saver.restore(s, FLAGS.train_dir + "/model.ckpt")
-            print("Model restored.")
+            saver.restore(s, "./model/model.ckpt")
+            print("Model restored.") 
 
         else:
             # Run all the initializers to prepare the trainable parameters.
             tf.initialize_all_variables().run()
 
             # Build the summary operation based on the TF collection of Summaries.
+            '''
             summary_op = tf.summary.merge_all()
             summary_writer = tf.summary.FileWriter(FLAGS.train_dir,
                                                     graph_def=s.graph_def)
+            '''
             print ('Initialized!')
             # Loop through training steps.
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
@@ -738,15 +1143,15 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                     if step % RECORDING_STEP == 0:
 
-                        # === Feature Two : Add ===
+                        # === Feature Two : Add Drop Out===
 
                         feed_dict={train_data_node:batch_data,train_labels_node:batch_labels,keep_prob:1.0}
-                        summary_str, _, l, lr, predictions = s.run(
-                            [summary_op, optimizer, loss, learning_rate, train_prediction],
+                        _, l, lr, predictions = s.run(
+                            [optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, step)
-                        summary_writer.flush()
+                        #summary_writer.add_summary(summary_str, step)
+                        #summary_writer.flush()
 
                         # print_predictions(predictions, batch_labels)
 
@@ -767,40 +1172,16 @@ def main(argv=None):  # pylint: disable=unused-argument
                             [optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
 
-                # Save the variables to disk. Check if the model is better if not, don't store
-                
-                #save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                #print("Model saved in file: %s" % save_path)
-
-
+        # Save The Model       
+        # save_path = saver.save(s, "./model/model.ckpt")
+        # print("Model saved in file: %s" % save_path)
         print ("Running prediction on training set")
         
-        # Feature Four : Final Assesement on Training Data
+        
         
         prediction_training_dir = "predictions_training/"
         if not os.path.isdir(prediction_training_dir):
             os.mkdir(prediction_training_dir)
-        '''
-        final_model = model(train_all_data_node)
-        train_all_prediction = tf.nn.softmax(final_model)
-        final_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-                logits=final_model, labels=train_labels))
-        final_loss += 5e-4 * regularizers
-        loss,predictions = s.run([final_loss,train_all_prediction],feed_dict={keep_prob:1})
-        
-        print ('error on trainning data : %.1f%%' % error_rate(predictions,train_labels))
-        print ('loss on trainning data: %.3f' % loss)
-        '''
-
-        '''
-        for i in range(1, TRAINING_SIZE+1):
-            name = ''
-            
-            pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-            oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")    
-            '''
         
         
         predict_data_filename = './test_set_images';
@@ -815,22 +1196,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_3c = convertToPNG(p_img)
             Image.fromarray(img_3c).save(prediction_training_dir + "prediction_" + str(idx) + ".png")
 
-        '''
-        train_data_filename = './training/images/';
-        dir = './training/predictions/'
-        if not os.path.isdir(dir):
-            os.mkdir(dir)
-        for idx in range(1,TRAINING_SIZE+1):
-            name = train_data_filename+'satImage_'+'{0:03}'.format(idx)+'.png'
-            img = mpimg.imread(name)
-            print(name)
-            avg = numpy.average(img)
-            img = numpy.asarray([[[numpy.float32((val-avg)/VARIANCE) for val in i] for i in j ] for j in img ])
-            
-            p_img = get_prediction_for_train(img)
-            img_3c = convertToPNG(p_img)
-            Image.fromarray(img_3c).save(dir +'satImage_'+str(idx)+'.png')
-        '''
+        
 
 if __name__ == '__main__':
     tf.app.run()
