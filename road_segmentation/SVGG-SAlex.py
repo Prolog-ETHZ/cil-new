@@ -26,14 +26,14 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 1
+TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 10
+NUM_EPOCHS = 5
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
-PREDICTION_SIZE = 1
+PREDICTION_SIZE = 50
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
@@ -317,7 +317,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         
         # New Feature : USE SMOTE To balance the data
-        print ('Balancing training data...')
+        '''
+		print ('Balancing training data...')
         sm = RandomOverSampler() #SMOTE(kind='regular')   # #
         # Change the shape to fit the method call
         train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
@@ -334,7 +335,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
         global_train_data = global_train_data.reshape(global_train_data.shape[0],REFACTOR_PATCH_SIZE*3,REFACTOR_PATCH_SIZE*3,NUM_CHANNELS)
         train_labels = reformat(train_labels)
-
+		'''
 
     else:
 
