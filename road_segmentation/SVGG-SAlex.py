@@ -250,7 +250,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             else:
                 c1 = c1 + 1
         print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
-        
+        diff = c0-c1
         print('Normalize the data .....')
         # === Feature Three : Pre-formalize the input ===
         avgs = [numpy.average(patch) for patch in train_data]
@@ -336,6 +336,14 @@ def main(argv=None):  # pylint: disable=unused-argument
         global_train_data = global_train_data.reshape(global_train_data.shape[0],REFACTOR_PATCH_SIZE*3,REFACTOR_PATCH_SIZE*3,NUM_CHANNELS)
         train_labels = reformat(train_labels)
 		'''
+        print ('Balancing training data...')
+        bal_index = [i for i in range(train_data.shape[0])]
+        for i in range(diff):
+            index = numpy.random.randint(train_data.shape[0])
+            bal_index.append(index)
+        print(len(bal_index))
+        train_size = len(bal_index)
+
 
     else:
 
