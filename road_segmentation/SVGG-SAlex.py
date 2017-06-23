@@ -26,7 +26,7 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100
+TRAINING_SIZE = 1
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
@@ -1163,7 +1163,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 print(str(iteration)+" iteration")
                 iteration+=1
                 # Permute training indices
-                perm_indices = numpy.random.permutation(training_indices)
+                perm_indices = numpy.random.permutation(bal_index)
 
                 for step in range (int(train_size / BATCH_SIZE)):
 
