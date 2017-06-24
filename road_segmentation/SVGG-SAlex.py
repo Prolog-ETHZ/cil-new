@@ -42,6 +42,8 @@ REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE =  0.212212 #0.190137 #0.201966
 PATCH_PER_IMAGE = 625
 PRE_PROCESSED = False
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
+
 '''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
@@ -1139,7 +1141,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     # Create a local session to run this computation.
     with tf.Session() as s:
 
-
+        s = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         if RESTORE_MODEL:
             # Restore variables from disk.
             saver.restore(s, "./model/model.ckpt")
