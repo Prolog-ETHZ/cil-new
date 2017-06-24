@@ -785,9 +785,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv1_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn1 = tf.layers.batch_normalization(conv1,training=train)
+        relu1 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv1, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv1, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu1 = tf.nn.relu(bn1)
+        #relu1 = tf.nn.relu(bn1)
 
         # =============== 2nd Layer ==============
         # 3*3*64 Conv
@@ -796,9 +799,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                             strides=[1, 1, 1, 1],
                             padding='SAME')
         # Relu the Conv
-        bn2 = tf.layers.batch_normalization(conv2,training=train)
+        relu2 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv2, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv2, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu2 = tf.nn.relu(bn2)
+        #relu2 = tf.nn.relu(bn2)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -813,9 +819,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv3_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn3 = tf.layers.batch_normalization(conv3,training=train)
+        relu3 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv3, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv3, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu3 = tf.nn.relu(bn3)
+        #relu3 = tf.nn.relu(bn3)
 
         # =============== 4th Layer ==============
         # 3*3*128 Conv
@@ -824,9 +833,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             strides=[1, 1, 1, 1],
                             padding='SAME')
         # Relu the Conv
-        bn4 = tf.layers.batch_normalization(conv4,training=train)
+        #bn4 = tf.layers.batch_normalization(conv4,training=train)
+        relu4 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv4, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv4, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu4 = tf.nn.relu(bn4)
+        #relu4 = tf.nn.relu(bn4)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -841,9 +854,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv5_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn5 = tf.layers.batch_normalization(conv5,training=train)
+        #bn5 = tf.layers.batch_normalization(conv5,training=train)
+        relu5 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv5, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv5, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu5 = tf.nn.relu(bn5)
+        #relu5 = tf.nn.relu(bn5)
 
         # =============== 6th Layer ==============
         # 3*3*256 Conv
@@ -851,9 +868,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv6_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn6 = tf.layers.batch_normalization(conv6,training=train)
+        #bn6 = tf.layers.batch_normalization(conv6,training=train)
         # Relu the Conv
-        relu6 = tf.nn.relu(bn6)
+        #relu6 = tf.nn.relu(bn6)
+        relu6 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv6, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv6, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
 
         # =============== 7th Layer ==============
         # 3*3*256 Conv
@@ -861,9 +882,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv7_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn7 = tf.layers.batch_normalization(conv7,training=train)
+        #bn7 = tf.layers.batch_normalization(conv7,training=train)
+        relu7 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv7, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv7, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu7 = tf.nn.relu(bn7)
+        #relu7 = tf.nn.relu(bn7)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -878,9 +903,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv8_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn8 = tf.layers.batch_normalization(conv8,training=train)
+        #bn8 = tf.layers.batch_normalization(conv8,training=train)
+        relu8 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv8, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv8, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu8 = tf.nn.relu(bn8)
+        #relu8 = tf.nn.relu(bn8)
 
         # =============== 9th Layer ==============
         # 3*3*512 Conv
@@ -888,9 +917,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv9_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn9 = tf.layers.batch_normalization(conv9,training=train)
+        #bn9 = tf.layers.batch_normalization(conv9,training=train)
+        relu9 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv9, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv9, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Relu the Conv
-        relu9 = tf.nn.relu(bn9)
+        #relu9 = tf.nn.relu(bn9)
 
         # =============== 10th Layer ==============
         # 3*3*512 Conv
@@ -898,9 +931,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv10_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn10 = tf.layers.batch_normalization(conv10,training=train)
+        #bn10 = tf.layers.batch_normalization(conv10,training=train)
         # Relu the Conv
-        relu10 = tf.nn.relu(bn10)
+        #relu10 = tf.nn.relu(bn10)
+        relu10 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv10, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv10, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -915,9 +952,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv11_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn11 = tf.layers.batch_normalization(conv11,training=train)
+        #bn11 = tf.layers.batch_normalization(conv11,training=train)
         # Relu the Conv
-        relu11 = tf.nn.relu(bn11)
+        #relu11 = tf.nn.relu(bn11)
+        relu11 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv11, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv11, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
 
         # =============== 12th Layer ==============
         # 3*3*512 Conv
@@ -925,9 +966,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv12_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn12 = tf.layers.batch_normalization(conv12,training=train)
+        #bn12 = tf.layers.batch_normalization(conv12,training=train)
         # Relu the Conv
-        relu12 = tf.nn.relu(bn12)
+        #relu12 = tf.nn.relu(bn12)
+        relu12 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv12, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv12, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
 
         # =============== 13th Layer ==============
         # 3*3*512 Conv
@@ -935,9 +980,13 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv13_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn13 = tf.layers.batch_normalization(conv13,training=train)
+        #bn13 = tf.layers.batch_normalization(conv13,training=train)
         # Relu the Conv
-        relu13 = tf.nn.relu(bn13)
+        #relu13 = tf.nn.relu(bn13)
+        relu13 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(conv13, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(conv13, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
         pool5 = tf.nn.max_pool(relu13,
@@ -954,12 +1003,18 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         # =============== 14th Layer ==============
         med1 = tf.matmul(reshape, fc1_weights)
-        hidden1 = tf.nn.relu(tf.layers.batch_normalization(med1,training=train))
+        hidden1 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(med1, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(med2, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         hidden1_drop = tf.nn.dropout(hidden1, keep_prob)
 
         # =============== 15th Layer ==============
         med2 = tf.matmul(hidden1_drop, fc2_weights)
-        hidden2 = tf.nn.relu(tf.layers.batch_normalization(med2,training=train))
+        hidden2 = tf.cond(train, 
+            lambda: tf.contrib.layers.batch_norm(med2, activation_fn=tf.nn.relu, is_training=True, reuse=None),
+            lambda: tf.contrib.layers.batch_norm(med2, activation_fn =tf.nn.relu, is_training=False, reuse=True)
+        )
         hidden2_drop = tf.nn.dropout(hidden2, keep_prob)
 
         # =============== 16th Layer ==============
