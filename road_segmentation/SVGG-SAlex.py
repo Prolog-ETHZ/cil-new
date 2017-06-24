@@ -741,12 +741,14 @@ def main(argv=None):  # pylint: disable=unused-argument
             global_data.append(mats)
 
         global_data = numpy.asarray(global_data)
-        print(global_data.shape)
-        global_data = tf.constant(global_data)
+        glo_shit = tf.placeholder(
+                    tf.float32,
+                    shape=(1444, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)
+                )
         
         
-        output = tf.nn.softmax(model(data_node,global_data))
-        output_prediction = s.run(output,feed_dict={keep_prob:1.0})
+        output = tf.nn.softmax(model(data_node,glo_shit))
+        output_prediction = s.run(output,feed_dict={keep_prob:1.0,glo_shit:global_data})
 
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
 
