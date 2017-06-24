@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100 
+TRAINING_SIZE = 1 
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 35
+NUM_EPOCHS = 3
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -689,7 +689,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         p_data = numpy.asarray(refactored_data)
         data_node = tf.constant(p_data)
 
-        output = tf.nn.softmax(model(data_node))
+        output = tf.nn.softmax(model(data_node,False))
         output_prediction = s.run(output,feed_dict={keep_prob:1.0})
 
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
@@ -722,7 +722,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         p_data = numpy.asarray(refactored_data)
         data_node = tf.constant(p_data)
 
-        output = tf.nn.softmax(model(data_node))
+        output = tf.nn.softmax(model(data_node,False))
         output_prediction = s.run(output,feed_dict={keep_prob:1.0})
 
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
@@ -785,8 +785,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv1_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
+        bn1 = tf.layers.batch_normalization(conv1,training=train)
         # Relu the Conv
-        relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
+        relu1 = tf.nn.relu(bn1)
 
         # =============== 2nd Layer ==============
         # 3*3*64 Conv
@@ -795,7 +796,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             strides=[1, 1, 1, 1],
                             padding='SAME')
         # Relu the Conv
-        relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+        bn2 = tf.layers.batch_normalization(conv2,training=train)
+        # Relu the Conv
+        relu2 = tf.nn.relu(bn2)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -810,7 +813,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv3_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
+        bn3 = tf.layers.batch_normalization(conv3,training=train)
+        # Relu the Conv
+        relu3 = tf.nn.relu(bn3)
 
         # =============== 4th Layer ==============
         # 3*3*128 Conv
@@ -819,7 +824,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             strides=[1, 1, 1, 1],
                             padding='SAME')
         # Relu the Conv
-        relu4 = tf.nn.relu(tf.nn.bias_add(conv4, conv4_biases))
+        bn4 = tf.layers.batch_normalization(conv4,training=train)
+        # Relu the Conv
+        relu4 = tf.nn.relu(bn4)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -834,7 +841,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv5_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu5 = tf.nn.relu(tf.nn.bias_add(conv5, conv5_biases))
+        bn5 = tf.layers.batch_normalization(conv5,training=train)
+        # Relu the Conv
+        relu5 = tf.nn.relu(bn5)
 
         # =============== 6th Layer ==============
         # 3*3*256 Conv
@@ -842,7 +851,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv6_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu6 = tf.nn.relu(tf.nn.bias_add(conv6, conv6_biases))
+        bn6 = tf.layers.batch_normalization(conv6,training=train)
+        # Relu the Conv
+        relu6 = tf.nn.relu(bn6)
 
         # =============== 7th Layer ==============
         # 3*3*256 Conv
@@ -850,7 +861,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv7_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu7 = tf.nn.relu(tf.nn.bias_add(conv7, conv7_biases))
+        bn7 = tf.layers.batch_normalization(conv7,training=train)
+        # Relu the Conv
+        relu7 = tf.nn.relu(bn7)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -865,7 +878,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv8_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu8 = tf.nn.relu(tf.nn.bias_add(conv8, conv8_biases))
+        bn8 = tf.layers.batch_normalization(conv8,training=train)
+        # Relu the Conv
+        relu8 = tf.nn.relu(bn8)
 
         # =============== 9th Layer ==============
         # 3*3*512 Conv
@@ -873,7 +888,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv9_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu9 = tf.nn.relu(tf.nn.bias_add(conv9, conv9_biases))
+        bn9 = tf.layers.batch_normalization(conv9,training=train)
+        # Relu the Conv
+        relu9 = tf.nn.relu(bn9)
 
         # =============== 10th Layer ==============
         # 3*3*512 Conv
@@ -881,7 +898,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv10_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu10 = tf.nn.relu(tf.nn.bias_add(conv10, conv10_biases))
+        bn10 = tf.layers.batch_normalization(conv10,training=train)
+        # Relu the Conv
+        relu10 = tf.nn.relu(bn10)
 
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -896,7 +915,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv11_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu11 = tf.nn.relu(tf.nn.bias_add(conv11, conv11_biases))
+        bn11 = tf.layers.batch_normalization(conv11,training=train)
+        # Relu the Conv
+        relu11 = tf.nn.relu(bn11)
 
         # =============== 12th Layer ==============
         # 3*3*512 Conv
@@ -904,7 +925,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv12_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu12 = tf.nn.relu(tf.nn.bias_add(conv12, conv12_biases))
+        bn12 = tf.layers.batch_normalization(conv12,training=train)
+        # Relu the Conv
+        relu12 = tf.nn.relu(bn12)
 
         # =============== 13th Layer ==============
         # 3*3*512 Conv
@@ -912,8 +935,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv13_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        relu13 = tf.nn.relu(tf.nn.bias_add(conv13, conv13_biases))
-
+        bn13 = tf.layers.batch_normalization(conv13,training=train)
+        # Relu the Conv
+        relu13 = tf.nn.relu(bn13)
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
         pool5 = tf.nn.max_pool(relu13,
@@ -929,11 +953,13 @@ def main(argv=None):  # pylint: disable=unused-argument
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]]) # 2048
 
         # =============== 14th Layer ==============
-        hidden1 = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        med1 = tf.matmul(reshape, fc1_weights)
+        hidden1 = tf.nn.relu(tf.layers.batch_normalization(med1,training=train))
         hidden1_drop = tf.nn.dropout(hidden1, keep_prob)
 
         # =============== 15th Layer ==============
-        hidden2 = tf.nn.relu(tf.matmul(hidden1_drop, fc2_weights) + fc2_biases)
+        med2 = tf.matmul(hidden1_drop, fc2_weights)
+        hidden2 = tf.nn.relu(tf.layers.batch_normalization(med2,training=train))
         hidden2_drop = tf.nn.dropout(hidden2, keep_prob)
 
         # =============== 16th Layer ==============
