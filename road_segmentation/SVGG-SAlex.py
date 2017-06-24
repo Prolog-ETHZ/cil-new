@@ -740,8 +740,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                             numpy.hstack([down_left, down,down_right])])
             global_data.append(mats)
 
-        
-        global_data = tf.constant(numpy.asarray(global_data))
+        global_data = numpy.asarray(global_data)
+        print(global_data.shape)
+        global_data = tf.constant(global_data)
         
         
         output = tf.nn.softmax(model(data_node,global_data))
