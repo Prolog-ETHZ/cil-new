@@ -30,7 +30,7 @@ TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 3
+NUM_EPOCHS = 2
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -841,7 +841,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv5_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn5 = tf.layers.batch_normalization(conv5,training=train)
+        bn5 = conv5 #tf.layers.batch_normalization(conv5,training=train)
         # Relu the Conv
         relu5 = tf.nn.relu(bn5)
 
@@ -1091,17 +1091,17 @@ def main(argv=None):  # pylint: disable=unused-argument
     batch = tf.Variable(0)
     # Decay once per epoch, using an exponential schedule starting at 0.01.
     learning_rate = tf.train.exponential_decay(
-        0.009,                # Base learning rate.
+        0.001,                # Base learning rate.
         batch * BATCH_SIZE,  # Current index into the dataset.
         train_size*2  ,          # Decay step.
-        0.97,                # Decay rate.
+        1,                # Decay rate.
         staircase=True)
     tf.summary.merge_all(learning_rate)
     
     # Use simple momentum for the optimization.
     optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            0.0).minimize(loss,
-                                                         global_step=batch)
+                                                        global_step=batch)
 
     # Predictions for the minibatch, validation set and test set.
     train_prediction = tf.nn.softmax(logits)
@@ -1123,7 +1123,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         else:
             # Run all the initializers to prepare the trainable parameters.
             tf.initialize_all_variables().run()
-
+       
             # Build the summary operation based on the TF collection of Summaries.
             '''
             summary_op = tf.summary.merge_all()
