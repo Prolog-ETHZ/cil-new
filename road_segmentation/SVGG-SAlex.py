@@ -1139,7 +1139,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     saver = tf.train.Saver()
 
     # Create a local session to run this computation.
-    with tf.Session() as s:
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as s:
 
         s = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         if RESTORE_MODEL:
