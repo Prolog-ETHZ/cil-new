@@ -690,7 +690,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         data_node = tf.constant(p_data)
         extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         output = tf.nn.softmax(model(data_node,False))
-        _,output_prediction = s.run([extra_update_ops,output],feed_dict={keep_prob:1.0,phase_train:False})
+        output_prediction,_ = s.run([output,extra_update_ops],feed_dict={keep_prob:1.0,phase_train:False})
 
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
 

@@ -228,136 +228,22 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_data = None
     train_labels = None
     num_epochs = NUM_EPOCHS
-    if not RESTORE_MODEL:
-        if not PRE_PROCESSED:
+    if RESTORE_MODEL:
+        TRAINING_SIZE = 1
 
-            data_dir = 'training/'
-            train_data_filename = data_dir + 'images/'
-            train_labels_filename = data_dir + 'groundtruth/' 
-            
-            # Extract it into numpy arrays.
-            train_data = extract_data(train_data_filename, TRAINING_SIZE)
-            train_labels = extract_labels(train_labels_filename, TRAINING_SIZE) #Ground = 1 Road = 0
+    if not PRE_PROCESSED:
 
-            
-            
+        data_dir = 'training/'
+        train_data_filename = data_dir + 'images/'
+        train_labels_filename = data_dir + 'groundtruth/' 
+        
+        # Extract it into numpy arrays.
+        train_data = extract_data(train_data_filename, TRAINING_SIZE)
+        train_labels = extract_labels(train_labels_filename, TRAINING_SIZE) #Ground = 1 Road = 0
 
-            c0 = 0
-            c1 = 0
-            for i in range(len(train_labels)):
-                if train_labels[i][0] == 1:
-                    c0 = c0 + 1
-                else:
-                    c1 = c1 + 1
-            print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
-            diff = c0-c1
-            print('Normalize the data .....')
-            # === Feature Three : Pre-formalize the input ===
-            avgs = [numpy.average(patch) for patch in train_data]
-            train_data = numpy.asarray([[[[numpy.float32((val-avgs[patch[0]])/VARIANCE) for val in j] for j in i] for i in patch[1]] for patch in  enumerate(train_data)])
-            print(train_data.shape)
-            
-            
-            
-            
-            train_size = train_labels.shape[0]
-            
+        
+        
 
-            print('Refactor with neighbors ......')
-            print(train_data.shape)
-            print(train_labels.shape)
-            refactored_train_data = list()
-            for index,data in enumerate(train_data):
-
-                img_idx = int(index / PATCH_PER_IMAGE)
-
-                center = data
-                up = data if (int((index-25)/PATCH_PER_IMAGE) != img_idx or index-25 <0) else train_data[index-25]
-                down = data if  (int((index+25)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25]
-                left = data if (int((index-1)/PATCH_PER_IMAGE) != img_idx or index-1<0 ) else train_data[index-1]
-                right = data if (int((index+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+1]
-                up_left = data if  (int((index-25-1)/PATCH_PER_IMAGE) != img_idx or index-25-1 <0) else train_data[index-25-1]
-                up_right = data if  (int((index-25+1)/PATCH_PER_IMAGE) != img_idx or index-25+1 <0) else train_data[index-25+1]
-                down_left = data if  (int((index+25-1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25-1]
-                down_right = data if  (int((index+25+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25+1]
-                
-                
-                mats = numpy.vstack([   numpy.hstack([up_left, up,up_right]), 
-                                    numpy.hstack([left, center,right]),
-                                    numpy.hstack([down_left, down,down_right])])
-                    
-                refactored_train_data.append(mats)
-
-            train_data = numpy.asarray(refactored_train_data)
-            
-            print('Form Global Data')
-            global_train_data = list()
-            for index,data in enumerate(train_data):
-
-                img_idx = int(index / PATCH_PER_IMAGE)
-
-                center = data
-                up = data if (int((index-25*3)/PATCH_PER_IMAGE) != img_idx or index-25*3 <0) else train_data[index-25*3]
-                down = data if  (int((index+25*3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3]
-                left = data if (int((index-3)/PATCH_PER_IMAGE) != img_idx or index-3<0 ) else train_data[index-3]
-                right = data if (int((index+3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+3]
-                up_left = data if  (int((index-25*3-3)/PATCH_PER_IMAGE) != img_idx or index-25*3-3 <0) else train_data[index-25*3-3]
-                up_right = data if  (int((index-25*3+3)/PATCH_PER_IMAGE) != img_idx or index-25*3+3 <0) else train_data[index-25*3+3]
-                down_left = data if  (int((index+25*3-3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3-3]
-                down_right = data if  (int((index+25*3+3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3+3]
-                
-                
-                mats = numpy.vstack([  numpy.hstack([up_left, up,up_right]), 
-                                    numpy.hstack([left, center,right]),
-                                    numpy.hstack([down_left, down,down_right])])
-                    
-                global_train_data.append(mats)
-
-            global_train_data = numpy.asarray(global_train_data)
-
-            
-            # New Feature : USE SMOTE To balance the data
-            '''
-    		print ('Balancing training data...')
-            sm = RandomOverSampler() #SMOTE(kind='regular')   # #
-            # Change the shape to fit the method call
-            train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
-            global_train_data = global_train_data.reshape(global_train_data.shape[0],global_train_data.shape[1]*global_train_data.shape[2]*global_train_data.shape[3])
-            train_labels =  train_labels[:,0]
-            print(global_train_data.shape)
-            
-            print(train_data.shape)
-            print(train_labels.shape)
-            train_data, f_train_labels = sm.fit_sample(train_data, train_labels)
-            global_train_data,train_labels = sm.fit_sample(global_train_data, train_labels)
-            train_labels = f_train_labels
-            print('reformat')
-            train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
-            global_train_data = global_train_data.reshape(global_train_data.shape[0],REFACTOR_PATCH_SIZE*3,REFACTOR_PATCH_SIZE*3,NUM_CHANNELS)
-            train_labels = reformat(train_labels)
-    		'''
-            print ('Balancing training data...')
-            bal_index = [i for i in range(train_data.shape[0])]
-            for i in range(diff):
-                index = numpy.random.randint(train_data.shape[0])
-                bal_index.append(index)
-            print(len(bal_index))
-            train_size = len(bal_index)
-
-
-        else:
-
-            train_data = read_object('./data/train_data.pkl')
-            train_labels = read_object('./data/train_labels.pkl')
-            print('Object Read')
-            print('calculate new variance')
-            var = numpy.std(train_data)
-            print(var)
-
-        print(train_data.shape)
-        print(train_labels.shape)
-        print(global_train_data.shape)
-        train_size = train_labels.shape[0]
         c0 = 0
         c1 = 0
         for i in range(len(train_labels)):
@@ -366,19 +252,135 @@ def main(argv=None):  # pylint: disable=unused-argument
             else:
                 c1 = c1 + 1
         print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+        diff = c0-c1
+        print('Normalize the data .....')
+        # === Feature Three : Pre-formalize the input ===
+        avgs = [numpy.average(patch) for patch in train_data]
+        train_data = numpy.asarray([[[[numpy.float32((val-avgs[patch[0]])/VARIANCE) for val in j] for j in i] for i in patch[1]] for patch in  enumerate(train_data)])
+        print(train_data.shape)
         
         
-        # This is where training samples and labels are fed to the graph.
-        # These placeholder nodes will be fed a batch of training data at each
-        # training step using the {feed_dict} argument to the Run() call below.
-        train_data_node = tf.placeholder(
-            tf.float32,
-            shape=(BATCH_SIZE, REFACTOR_PATCH_SIZE, REFACTOR_PATCH_SIZE, NUM_CHANNELS)) # X_batch
-        train_labels_node = tf.placeholder(tf.float32,
-                                           shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
-        global_data_node = tf.placeholder(
-            tf.float32,
-            shape=(BATCH_SIZE, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)) # X_batch
+        
+        
+        train_size = train_labels.shape[0]
+        
+
+        print('Refactor with neighbors ......')
+        print(train_data.shape)
+        print(train_labels.shape)
+        refactored_train_data = list()
+        for index,data in enumerate(train_data):
+
+            img_idx = int(index / PATCH_PER_IMAGE)
+
+            center = data
+            up = data if (int((index-25)/PATCH_PER_IMAGE) != img_idx or index-25 <0) else train_data[index-25]
+            down = data if  (int((index+25)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25]
+            left = data if (int((index-1)/PATCH_PER_IMAGE) != img_idx or index-1<0 ) else train_data[index-1]
+            right = data if (int((index+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+1]
+            up_left = data if  (int((index-25-1)/PATCH_PER_IMAGE) != img_idx or index-25-1 <0) else train_data[index-25-1]
+            up_right = data if  (int((index-25+1)/PATCH_PER_IMAGE) != img_idx or index-25+1 <0) else train_data[index-25+1]
+            down_left = data if  (int((index+25-1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25-1]
+            down_right = data if  (int((index+25+1)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25+1]
+            
+            
+            mats = numpy.vstack([   numpy.hstack([up_left, up,up_right]), 
+                                numpy.hstack([left, center,right]),
+                                numpy.hstack([down_left, down,down_right])])
+                
+            refactored_train_data.append(mats)
+
+        train_data = numpy.asarray(refactored_train_data)
+        
+        print('Form Global Data')
+        global_train_data = list()
+        for index,data in enumerate(train_data):
+
+            img_idx = int(index / PATCH_PER_IMAGE)
+
+            center = data
+            up = data if (int((index-25*3)/PATCH_PER_IMAGE) != img_idx or index-25*3 <0) else train_data[index-25*3]
+            down = data if  (int((index+25*3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3]
+            left = data if (int((index-3)/PATCH_PER_IMAGE) != img_idx or index-3<0 ) else train_data[index-3]
+            right = data if (int((index+3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+3]
+            up_left = data if  (int((index-25*3-3)/PATCH_PER_IMAGE) != img_idx or index-25*3-3 <0) else train_data[index-25*3-3]
+            up_right = data if  (int((index-25*3+3)/PATCH_PER_IMAGE) != img_idx or index-25*3+3 <0) else train_data[index-25*3+3]
+            down_left = data if  (int((index+25*3-3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3-3]
+            down_right = data if  (int((index+25*3+3)/PATCH_PER_IMAGE) != img_idx) else train_data[index+25*3+3]
+            
+            
+            mats = numpy.vstack([  numpy.hstack([up_left, up,up_right]), 
+                                numpy.hstack([left, center,right]),
+                                numpy.hstack([down_left, down,down_right])])
+                
+            global_train_data.append(mats)
+
+        global_train_data = numpy.asarray(global_train_data)
+
+        
+        # New Feature : USE SMOTE To balance the data
+        '''
+		print ('Balancing training data...')
+        sm = RandomOverSampler() #SMOTE(kind='regular')   # #
+        # Change the shape to fit the method call
+        train_data = train_data.reshape(train_data.shape[0],train_data.shape[1]*train_data.shape[2]*train_data.shape[3])
+        global_train_data = global_train_data.reshape(global_train_data.shape[0],global_train_data.shape[1]*global_train_data.shape[2]*global_train_data.shape[3])
+        train_labels =  train_labels[:,0]
+        print(global_train_data.shape)
+        
+        print(train_data.shape)
+        print(train_labels.shape)
+        train_data, f_train_labels = sm.fit_sample(train_data, train_labels)
+        global_train_data,train_labels = sm.fit_sample(global_train_data, train_labels)
+        train_labels = f_train_labels
+        print('reformat')
+        train_data = train_data.reshape(train_data.shape[0],REFACTOR_PATCH_SIZE,REFACTOR_PATCH_SIZE,NUM_CHANNELS)
+        global_train_data = global_train_data.reshape(global_train_data.shape[0],REFACTOR_PATCH_SIZE*3,REFACTOR_PATCH_SIZE*3,NUM_CHANNELS)
+        train_labels = reformat(train_labels)
+		'''
+        print ('Balancing training data...')
+        bal_index = [i for i in range(train_data.shape[0])]
+        for i in range(diff):
+            index = numpy.random.randint(train_data.shape[0])
+            bal_index.append(index)
+        print(len(bal_index))
+        train_size = len(bal_index)
+
+
+    else:
+
+        train_data = read_object('./data/train_data.pkl')
+        train_labels = read_object('./data/train_labels.pkl')
+        print('Object Read')
+        print('calculate new variance')
+        var = numpy.std(train_data)
+        print(var)
+
+    print(train_data.shape)
+    print(train_labels.shape)
+    print(global_train_data.shape)
+    train_size = train_labels.shape[0]
+    c0 = 0
+    c1 = 0
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            c0 = c0 + 1
+        else:
+            c1 = c1 + 1
+    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+    
+    
+    # This is where training samples and labels are fed to the graph.
+    # These placeholder nodes will be fed a batch of training data at each
+    # training step using the {feed_dict} argument to the Run() call below.
+    train_data_node = tf.placeholder(
+        tf.float32,
+        shape=(BATCH_SIZE, REFACTOR_PATCH_SIZE, REFACTOR_PATCH_SIZE, NUM_CHANNELS)) # X_batch
+    train_labels_node = tf.placeholder(tf.float32,
+                                       shape=(BATCH_SIZE, NUM_LABELS)) # Y_batch
+    global_data_node = tf.placeholder(
+        tf.float32,
+        shape=(BATCH_SIZE, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)) # X_batch
 
     #train_all_data_node = tf.constant(train_data) # All_X
    
