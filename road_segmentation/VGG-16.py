@@ -841,7 +841,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv5_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        bn5 = conv5 #tf.layers.batch_normalization(conv5,training=train)
+        bn5 = tf.layers.batch_normalization(conv5,training=train)
         # Relu the Conv
         relu5 = tf.nn.relu(bn5)
 
@@ -1122,8 +1122,9 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         else:
             # Run all the initializers to prepare the trainable parameters.
-            tf.initialize_all_variables().run()
-       
+            #tf.initialize_all_variables().run()
+            init_op = tf.global_variables_initializer() 
+            s.run(init_op)
             # Build the summary operation based on the TF collection of Summaries.
             '''
             summary_op = tf.summary.merge_all()
