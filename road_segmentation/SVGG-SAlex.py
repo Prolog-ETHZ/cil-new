@@ -714,7 +714,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             refactored_data.append(mats)
 
         p_data = numpy.asarray(refactored_data)
-        data_node = tf.constant(p_data)
+        
 
         global_data = list()
         print(p_data.shape)
@@ -737,13 +737,23 @@ def main(argv=None):  # pylint: disable=unused-argument
             global_data.append(mats)
 
         
-        global_data = tf.constant(numpy.asarray(global_data))
+        global_data = numpy.asarray(global_data)
         
-        
-        output = tf.nn.softmax(model(data_node,global_data))
-        output_prediction = s.run(output,feed_dict={keep_prob:1.0})
+        global_node = tf.placeholder(tf.float32,
+                            shape=(38, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)) # X_batch
+        data_node = tf.placeholder(tf.float32,
+                            shape=(38, REFACTOR_PATCH_SIZE, REFACTOR_PATCH_SIZE, NUM_CHANNELS))
 
-        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
+        labels = list()
+        for i in range(38):
+            indices = range(i*38+(i+1)*38)
+            output = tf.nn.softmax(model(data_node,global_node))
+            predictions = s.run(output,feed_dict={keep_prob:1.0,data_node:p_data[indices,:,:,:]
+                                ,global_node:global_data[indices,:,:,:]})
+            labels.append(predictions)
+        labels = numpy.asarray(labels)
+
+        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, labels)
 
         return img_prediction
 
