@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 1
+TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 2
+NUM_EPOCHS = 5
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -42,8 +42,6 @@ REFACTOR_PATCH_SIZE = IMG_PATCH_SIZE * 3
 VARIANCE =  0.212212 #0.190137 #0.201966
 PATCH_PER_IMAGE = 625
 PRE_PROCESSED = False
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
-
 '''
 tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
                            """Directory where to write event logs """
@@ -230,8 +228,6 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_data = None
     train_labels = None
     num_epochs = NUM_EPOCHS
-    if RESTORE_MODEL:
-        TRAINING_SIZE = 1
 
     if not PRE_PROCESSED:
 
@@ -718,7 +714,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             refactored_data.append(mats)
 
         p_data = numpy.asarray(refactored_data)
-        
+        data_node = tf.constant(p_data)
+
         global_data = list()
         print(p_data.shape)
         for index,data in enumerate(p_data):
@@ -739,28 +736,14 @@ def main(argv=None):  # pylint: disable=unused-argument
                             numpy.hstack([down_left, down,down_right])])
             global_data.append(mats)
 
-        global_data = numpy.asarray(global_data)
+        
+        global_data = tf.constant(numpy.asarray(global_data))
+        
+        
+        output = tf.nn.softmax(model(data_node,global_data))
+        output_prediction = s.run(output,feed_dict={keep_prob:1.0})
 
-        global_node  = tf.placeholder(
-                tf.float32,
-                shape=(38, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)
-        )
-        data_node = tf.placeholder(
-                tf.float32,
-                shape=(38, REFACTOR_PATCH_SIZE, REFACTOR_PATCH_SIZE, NUM_CHANNELS)
-        )
-        labels = list[]
-
-        for i in range(38):
-            indices =[i in range(i*38,(i+1)*38)]
-            output = tf.nn.softmax(model(data_node,global_node))
-            output_prediction = s.run(output,
-                    feed_dict={keep_prob:1.0,global_data:global_node[indices,:,:,:],
-                    data_node:p_data[indices,:,:,:]})
-            labels.append(output_prediction)
-
-        labels = numpy.asarray(labels)
-        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, labels)
+        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
 
         return img_prediction
 
@@ -1152,10 +1135,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     saver = tf.train.Saver()
 
     # Create a local session to run this computation.
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as s:
+    with tf.Session() as s:
 
-        s = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
         if RESTORE_MODEL:
             # Restore variables from disk.
             saver.restore(s, "./model/model.ckpt")
