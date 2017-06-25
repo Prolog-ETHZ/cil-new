@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100
+TRAINING_SIZE = 1
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 5
+NUM_EPOCHS = 0
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -746,13 +746,15 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         labels = list()
         for i in range(38):
-            indices = range(i*38+(i+1)*38)
+            indices = range(i*38,(i+1)*38)
             output = tf.nn.softmax(model(data_node,global_node))
             predictions = s.run(output,feed_dict={keep_prob:1.0,data_node:p_data[indices,:,:,:]
                                 ,global_node:global_data[indices,:,:,:]})
+            print(predictions.shape)
             labels.append(predictions)
         labels = numpy.asarray(labels)
-
+        labels = labels.reshape(labels.shape[0]*labels.shape[1],labels.shape[2])
+        print(labels.shape)
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, labels)
 
         return img_prediction
