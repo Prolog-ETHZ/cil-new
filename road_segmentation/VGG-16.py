@@ -496,6 +496,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     fc3_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
 
     phase_train = tf.placeholder(tf.bool, name='phase_train')
+    iter = tf.placeholder(tf.int, name='iter')
     # Change the Initializer
 
     conv1_weights = tf.get_variable('conv1_weights', 
@@ -688,46 +689,15 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         p_data = numpy.asarray(refactored_data)
         data_node = tf.constant(p_data)
-        extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        output = tf.nn.softmax(model(data_node,False))
-        output_prediction,_ = s.run([output,extra_update_ops],feed_dict={keep_prob:1.0,phase_train:False})
+        
+        output,ema = tf.nn.softmax(model(data_node,False,iter))
+        output_prediction,_ = s.run([output,ema],feed_dict={keep_prob:1.0,phase_train:False,iter:1})
 
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
 
         return img_prediction
 
-    def get_prediction_for_train(img):
-
-        p_data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
-        print(p_data.shape)
-        refactored_data = list()
-        for index,data in enumerate(p_data):
-
-            center = data
-            up = data if (index-25 <0) else p_data[index-25]
-            down = data if(index+25>len(p_data)-1) else p_data[index+25]
-            left = data if (index-1<0) else p_data[index-1]
-            right = data if(index+1>len(p_data)-1) else p_data[index+1]
-            up_left = data if  (index-25-1 <0) else p_data[index-25-1]
-            up_right = data if  (index-25+1 > len(p_data)-1 ) else p_data[index-25+1]
-            down_left = data if  (index+25-1 > len(p_data) -1) else p_data[index+25-1]
-            down_right = data if  (index+25+1 > len(p_data)-1) else p_data[index+25+1]
-            
-            
-            mats = numpy.vstack([numpy.hstack([up_left, up,up_right]), 
-                            numpy.hstack([left, center,right]),
-                            numpy.hstack([down_left, down,down_right])])
-            refactored_data.append(mats)
-
-        p_data = numpy.asarray(refactored_data)
-        data_node = tf.constant(p_data)
-
-        output = tf.nn.softmax(model(data_node,False))
-        output_prediction = s.run(output,feed_dict={keep_prob:1.0,phase_train:False})
-
-        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
-
-        return img_prediction
+    
 
     # Get a concatenation of the prediction and groundtruth for given input file
     def get_prediction_with_groundtruth(filename, image_idx):
@@ -769,79 +739,26 @@ def main(argv=None):  # pylint: disable=unused-argument
         outputs = tf.reduce_max(tf.reshape(inputs, shape), -1, keep_dims=False)
         return outputs
 
-    def batch_norm(x, n_out, phase_train, scope='bn'):
-        """
-        Batch normalization on convolutional maps.
-        Args:
-            x:           Tensor, 4D BHWD input maps
-            n_out:       integer, depth of input maps
-            phase_train: boolean tf.Varialbe, true indicates training phase
-            scope:       string, variable scope
-        Return:
-            normed:      batch-normalized maps
-        """
-        with tf.variable_scope(scope):
-            beta = tf.Variable(tf.constant(0.0, shape=[n_out]),
-                                         name='beta', trainable=True)
-            gamma = tf.Variable(tf.constant(1.0, shape=[n_out]),
-                                          name='gamma', trainable=True)
-            batch_mean, batch_var = tf.nn.moments(x, [0,1,2], name='moments')
-            ema = tf.train.ExponentialMovingAverage(decay=0.5)
+    def batchnorm(Ylogits, is_test, iteration, offset, convolutional=False):
+        exp_moving_avg = tf.train.ExponentialMovingAverage(0.999, iteration) # adding the iteration prevents from averaging across non-existing iterations
+        bnepsilon = 1e-5
+        if convolutional:
+            mean, variance = tf.nn.moments(Ylogits, [0, 1, 2])
+        else:
+            mean, variance = tf.nn.moments(Ylogits, [0])
+        update_moving_everages = exp_moving_avg.apply([mean, variance])
+        m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
+        v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
+        Ybn = tf.nn.batch_normalization(Ylogits, m, v, offset, None, bnepsilon)
+        return Ybn, update_moving_everages
 
-            def mean_var_with_update():
-                ema_apply_op = ema.apply([batch_mean, batch_var])
-                with tf.control_dependencies([ema_apply_op]):
-                    return tf.identity(batch_mean), tf.identity(batch_var)
-
-            mean, var = tf.cond(phase_train,
-                                mean_var_with_update,
-                                lambda: (ema.average(batch_mean), ema.average(batch_var)))
-            normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
-
-        return normed
-
-
-    def batch_norm_layer(x, scope, is_training, epsilon=0.001, decay=0.99, reuse=None):
-        """
-        Performs a batch normalization layer
-
-        Args:
-            x: input tensor
-            scope: scope name
-            is_training: python boolean value
-            epsilon: the variance epsilon - a small float number to avoid dividing by 0
-            decay: the moving average decay
-
-        Returns:
-            The ops of a batch normalization layer
-        """
-        with tf.variable_scope(scope, reuse=reuse):
-            shape = x.get_shape().as_list()
-            # gamma: a trainable scale factor
-            gamma = tf.get_variable("gamma", shape[-1], initializer=tf.constant_initializer(1.0), trainable=True)
-            # beta: a trainable shift value
-            beta = tf.get_variable("beta", shape[-1], initializer=tf.constant_initializer(0.0), trainable=True)
-            moving_avg = tf.get_variable("moving_avg", shape[-1], initializer=tf.constant_initializer(0.0), trainable=False)
-            moving_var = tf.get_variable("moving_var", shape[-1], initializer=tf.constant_initializer(1.0), trainable=False)
-            if is_training:
-                # tf.nn.moments == Calculate the mean and the variance of the tensor x
-                avg, var = tf.nn.moments(x, range(len(shape)-1))
-                update_moving_avg = moving_averages.assign_moving_average(moving_avg, avg, decay)
-                update_moving_var = moving_averages.assign_moving_average(moving_var, var, decay)
-                control_inputs = [update_moving_avg, update_moving_var]
-            else:
-                avg = moving_avg
-                var = moving_var
-                control_inputs = []
-            with tf.control_dependencies(control_inputs):
-                output = tf.nn.batch_normalization(x, avg, var, offset=beta, scale=gamma, variance_epsilon=epsilon)
-
-        return output
+    def no_batchnorm(Ylogits, is_test, iteration, offset, convolutional=False):
+        return Ylogits, tf.no_op()
     # We will replicate the model structure for the training subgraph, as well
     # as the evaluation subgraphs, while sharing the trainable parameters.
     # Define the layer forward computation
-    def model(data, train=False):
-        #train = phase_train
+    def model(data, train=False,iter):
+        train = phase_train
         """The Model definition."""
         # 2D convolution, with 'SAME' padding (i.e. the output feature map has
         # the same size as the input). Note that {strides} is a 4D array whose
@@ -863,7 +780,9 @@ def main(argv=None):  # pylint: disable=unused-argument
         
         
         # Relu the Conv
-        bn1 = batch_norm(conv1, 64, train)
+        #bn1 = batch_norm(conv1, 64, train)
+        #relu1 = tf.nn.relu(bn1)
+        bn1, update_ema1 = batchnorm(conv1, train, iter, conv1_biases)
         relu1 = tf.nn.relu(bn1)
 
         # =============== 2nd Layer ==============
@@ -881,7 +800,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn2')
         )
         '''
-        bn2 = batch_norm(conv2, 64, train)
+        bn2, update_ema2 = batchnorm(conv2, train, iter, conv2_biases)
         relu2 = tf.nn.relu(bn2)
         # Relu the Conv
         #bn2 = tf.layers.batch_normalization(conv2, training=train)
@@ -909,7 +828,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn3')
         )
         '''
-        bn3 = batch_norm(conv3, 128,train)
+        bn3, update_ema3 = batchnorm(conv3, train, iter, conv3_biases)
         relu3 = tf.nn.relu(bn3)
         # Relu the Conv
         #bn3 = tf.layers.batch_normalization(conv3, training=train)
@@ -934,7 +853,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn4')
         )
         '''
-        bn4 = batch_norm(conv4, 128, train)
+        bn4, update_ema4 = batchnorm(conv4, train, iter, conv4_biases)
         relu4 = tf.nn.relu(bn4)
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -961,7 +880,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn5')
         )
         '''
-        bn5 = batch_norm(conv5, 256, train)
+        bn5, update_ema5 = batchnorm(conv5, train, iter, conv5_biases)
         relu5 = tf.nn.relu(bn5)
         # =============== 6th Layer ==============
         # 3*3*256 Conv
@@ -980,7 +899,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn6')
         )
         '''
-        bn6 = batch_norm(conv6, 256, train)
+        bn6, update_ema6 = batchnorm(conv6, train, iter, conv6_biases)
         relu6 = tf.nn.relu(bn6)
         # =============== 7th Layer ==============
         # 3*3*256 Conv
@@ -999,7 +918,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn7')
         )
         '''
-        bn7 = batch_norm(conv7, 256, train)
+        bn7, update_ema7 = batchnorm(conv7, train, iter, conv7_biases)
         relu7 = tf.nn.relu(bn7)
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -1026,7 +945,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         '''
         # Relu the Conv
         #relu8 = tf.nn.relu(bn8)
-        bn8 = batch_norm(conv8, 512, train)
+        bn8, update_ema8 = batchnorm(conv8, train, iter, conv8_biases)
         relu8 = tf.nn.relu(bn8)
         # =============== 9th Layer ==============
         # 3*3*512 Conv
@@ -1043,7 +962,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn9')
         )
         '''
-        bn9 = batch_norm(conv9, 512, train)
+        bn9, update_ema9 = batchnorm(conv9, train, iter, conv9_biases)
         relu9 = tf.nn.relu(bn9)
         # Relu the Conv
         #relu9 = tf.nn.relu(bn9)
@@ -1065,7 +984,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn10')
         )
         '''
-        bn10 = batch_norm(conv10, 512, train)
+        bn10, update_ema10 = batchnorm(conv10, train, iter, conv10_biases)
         relu10 = tf.nn.relu(bn10)
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -1076,23 +995,18 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         # =============== 11th Layer ==============
         # 3*3*512 Conv
-        '''
+        
         conv11 = tf.nn.conv2d(pool4,
                             conv11_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
-        '''
-        bn11 = batch_norm(conv11, 512, train)
+        
+        bn11, update_ema11 = batchnorm(conv11, train, iter, conv11_biases)
         relu11 = tf.nn.relu(bn11)
         #bn11 = tf.layers.batch_normalization(conv11,training=train)
         # Relu the Conv
         #relu11 = tf.nn.relu(bn11)
-        relu11 = tf.cond(train, 
-            lambda: tf.contrib.layers.batch_norm(conv11, activation_fn=tf.nn.relu, 
-                                                is_training=True, reuse=None,scope='bn11'),
-            lambda: tf.contrib.layers.batch_norm(conv11, activation_fn =tf.nn.relu, 
-                is_training=False, reuse=True,scope='bn11')
-        )
+        
 
         # =============== 12th Layer ==============
         # 3*3*512 Conv
@@ -1111,7 +1025,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn12')
         )
         '''
-        bn12 = batch_norm(conv12, 512, train)
+        bn12, update_ema12 = batchnorm(conv12, train, iter, conv12_biases)
         relu12 = tf.nn.relu(bn12)
         # =============== 13th Layer ==============
         # 3*3*512 Conv
@@ -1130,7 +1044,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 is_training=False, reuse=True,scope='bn13')
         )
         '''
-        bn13 = batch_norm(conv13, 512, train)
+        bn13, update_ema13 = batchnorm(conv13, train, iter, conv13_biases)
         relu13 = tf.nn.relu(bn13)
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
@@ -1147,8 +1061,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]]) # 2048
 
         # =============== 14th Layer ==============
-        med1 = tf.matmul(reshape, fc1_weights)
-        hidden1 = batch_norm(med1, 1, train)
+        med1,update_ema14 = tf.matmul(reshape, fc1_weights)
+        hidden1 = batchnorm(med1, train, iter, fc1_biases)
         '''
         hidden1 = tf.cond(train, 
             lambda: tf.contrib.layers.batch_norm(med1, activation_fn=tf.nn.relu, is_training=True, reuse=None,scope='mb1'),
@@ -1160,8 +1074,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         hidden1_drop = tf.nn.dropout(hidden1, keep_prob)
 
         # =============== 15th Layer ==============
-        med2 = tf.matmul(hidden1_drop, fc2_weights)
-        hidden2 = batch_norm(med2,1,train)
+        med2,update_ema15 = tf.matmul(hidden1_drop, fc2_weights)
+        hidden2 =  batchnorm(med2, train, iter, fc2_biases)
         '''
         hidden2 = tf.cond(train, 
             lambda: tf.contrib.layers.batch_norm(med2, activation_fn=tf.nn.relu, is_training=True, reuse=None,scope='mb2'),
@@ -1173,7 +1087,10 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         # =============== 16th Layer ==============
         out = tf.matmul(hidden2_drop, fc3_weights) + fc3_biases
-
+        update_ema = tf.group(update_ema1, update_ema2, update_ema3, update_ema4,
+                                update_ema5, update_ema6, update_ema7, update_ema8,
+                                update_ema9, update_ema10, update_ema11, update_ema12,
+                                update_ema13, update_ema14, update_ema15)
 
         
 
@@ -1266,11 +1183,11 @@ def main(argv=None):  # pylint: disable=unused-argument
             s_pool2 = get_image_summary(pool2)
             filter_summary5 = tf.summary.image('summary_pool2' + summary_id, s_pool2)
             '''
-        return out
+        return out,update_ema
 
     # define the loss function
     # Training computation: logits + cross-entropy loss.
-    logits = model(train_data_node, True) # BATCH_SIZE*NUM_LABELS
+    logits,ema = model(train_data_node, True,iter) # BATCH_SIZE*NUM_LABELS
     # print 'logits = ' + str(logits.get_shape()) + ' train_labels_node = ' + str(train_labels_node.get_shape())
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
         logits=logits, labels=train_labels_node))
@@ -1381,10 +1298,13 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                         # === Feature Two : Add Drop Out===
 
-                        feed_dict={train_data_node:batch_data,train_labels_node:batch_labels,keep_prob:1.0,phase_train:True}
-                        extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                        feed_dict={train_data_node:batch_data,
+                            train_labels_node:batch_labels,keep_prob:1.0,
+                            phase_train:True,
+                            iter:iteration}
+                        
                         _,_, l, lr, predictions = s.run(
-                            [extra_update_ops,optimizer, loss, learning_rate, train_prediction],
+                            [ema,loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
 
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)
@@ -1404,11 +1324,11 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                         feed_dict = {train_data_node: batch_data,
                                  train_labels_node: batch_labels,
-                                 keep_prob:0.5}
-                        extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                                 keep_prob:0.5,iter:iteration}
+                        
 
                         _,_, l, lr, predictions = s.run(
-                            [extra_update_ops,optimizer, loss, learning_rate, train_prediction],
+                            [ema,optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
 
         # Save The Model       
