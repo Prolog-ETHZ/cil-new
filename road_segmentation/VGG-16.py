@@ -1304,7 +1304,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                             iter:iteration}
                         
                         _,_, l, lr, predictions = s.run(
-                            [ema,loss, learning_rate, train_prediction],
+                            [ema,optimizer,loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
 
                         #summary_str = s.run(summary_op, feed_dict=feed_dict)

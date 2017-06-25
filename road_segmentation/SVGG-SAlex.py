@@ -26,11 +26,11 @@ from imblearn.over_sampling import RandomOverSampler
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100
+TRAINING_SIZE = 1
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 5
+NUM_EPOCHS = 2
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 PREDICTION_SIZE = 50
@@ -718,8 +718,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             refactored_data.append(mats)
 
         p_data = numpy.asarray(refactored_data)
-        data_node = tf.constant(p_data)
-
+        
         global_data = list()
         print(p_data.shape)
         for index,data in enumerate(p_data):
@@ -741,16 +740,27 @@ def main(argv=None):  # pylint: disable=unused-argument
             global_data.append(mats)
 
         global_data = numpy.asarray(global_data)
-        glo_shit = tf.placeholder(
-                    tf.float32,
-                    shape=(1444, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)
-                )
-        
-        
-        output = tf.nn.softmax(model(data_node,glo_shit))
-        output_prediction = s.run(output,feed_dict={keep_prob:1.0,glo_shit:global_data})
 
-        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
+        global_node  = tf.placeholder(
+                tf.float32,
+                shape=(38, REFACTOR_PATCH_SIZE*3, REFACTOR_PATCH_SIZE*3, NUM_CHANNELS)
+        )
+        data_node = tf.placeholder(
+                tf.float32,
+                shape=(38, REFACTOR_PATCH_SIZE, REFACTOR_PATCH_SIZE, NUM_CHANNELS)
+        )
+        labels = list[]
+
+        for i in range(38):
+            indices =[i in range(i*38,(i+1)*38)]
+            output = tf.nn.softmax(model(data_node,global_node))
+            output_prediction = s.run(output,
+                    feed_dict={keep_prob:1.0,global_data:global_node[indices,:,:,:],
+                    data_node:p_data[indices,:,:,:]})
+            labels.append(output_prediction)
+
+        labels = numpy.asarray(labels)
+        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, labels)
 
         return img_prediction
 
