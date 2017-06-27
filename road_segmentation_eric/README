@@ -32,3 +32,5 @@ Failure modes:
 There are many misclassifications along the borders of roads, especially along diagonal roads. This is likely because the difference between 40% road and 60% road is not that evident. In order to combat this, I made the labels non-binary (0.4 for 40% road). This is why I tried the U-net architecture - I figured a per-pixel classification could deal better with these situations.
 
 There are a few images of highways where the networks fail across the board. I suppose this is because car parks are not roads and hard to distinguish from highways. Notably, parts of the highway with cars are classified correctly. I don't really have any idea how to mitigate this.
+
+The pictures are not necessarily all taken at a 90 degree angle. Therefore, sometimes, roads are overlapped by large adjacent buildings. This makes prediction very hard and is also possibly confusing during trianing.
