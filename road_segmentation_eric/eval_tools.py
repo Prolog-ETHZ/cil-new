@@ -1,4 +1,4 @@
-from config import PATCH_SIZE, IMG_SIZE, TEST_IMG_SIZE, BATCH_SIZE
+from config import PATCH_SIZE, IMG_SIZE, TEST_IMG_SIZE, BATCH_SIZE, THRESHOLD
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
@@ -53,7 +53,7 @@ def predict_img(model, x, y_true=None):
     if not params['reduce_to_patches']:
         y_patches = y_patches[..., 1]
     y_img = join_img(y_patches[:patches_per_img], x.shape[0] == IMG_SIZE)
-    y_img = np.minimum(np.maximum(np.round(y_img[..., np.newaxis]), 0), 1)
+    y_img = np.minimum(np.maximum(y_img[..., np.newaxis], 0), 1) > THRESHOLD
 
     if y_true is None:
         colored = np.minimum(x + y_img * [.3,0,0], 1)
